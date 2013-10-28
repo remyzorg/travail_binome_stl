@@ -1,0 +1,11 @@
+
+node metronome (reset : bool; delay : int) returns (tic, tac : bool);
+  var hz,  n,  state :  int; first :  bool;  
+let 
+  
+  hz = if reset then 0 else (0 -> pre hz ) + 1
+
+  tic = 
+  tac = 
+
+tel 
