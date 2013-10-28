@@ -14,8 +14,53 @@ let
   tic = n = 0 and state;
   tac = n = 0 and not state;
   
+  
+  assert (observerP1(tic, tac));
 
-  -- assert (not (tic and tac));
 
+tel 
+  
+
+
+node observerP1 (tic,  tac : bool) returns (res :  bool);
+let
+  res = not (tic and tac);
+tel
+  
+
+node observerP2 (tic, tac :  bool) returns (res :  bool);
+var last_state : bool;
+let
+  last_state = 
+    if tic then true else if tac then false else false -> pre last_state;
+  res =  
+    not (tic and pre last_state) or 
+    not (tac and not pre last_state);
+tel
+
+
+node observerP3 (tic,  reset :  bool; hz :  int) returns (res :  bool);
+var counter :  int; waiting_second :  bool;
+let
+  waiting_second = false -> not reset and (tic and not pre waiting_second);
+  counter = if waiting_second then 0 -> pre counter + 1 else 0;
+
+  res = if pre waiting_second and tic then counter = 2 * (hz + 1) 
+        else true;
+tel
+
+
+node bigfatorganizer (reset :  bool; delay :  int) returns (res :  bool);
+  var tic,  tac :  bool; hz : int;
+let 
+  
+  hz = if reset then delay else (0 -> pre hz);
+  tic, tac = metronome(reset,  delay);
+
+  res = observerP3(tic, reset, hz) 
+    and observerP1(tic, tac) 
+    and observerP2(tic, tac);
+  
+  
 
 tel 
