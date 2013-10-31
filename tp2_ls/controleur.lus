@@ -15,8 +15,7 @@ let
   tac = n = 0 and not state;
   
   
-  assert (observerP1(tic, tac));
-
+  assert (delay >= 0);
 
 tel 
   
@@ -50,17 +49,37 @@ let
 tel
 
 
-node bigfatorganizer (reset :  bool; delay :  int) returns (res :  bool);
-  var tic,  tac :  bool; hz : int;
+node organizer (reset :  bool; delay :  int) returns (tic, tac, res :  bool);
+var hz : int;
 let 
   
   hz = if reset then delay else (0 -> pre hz);
   tic, tac = metronome(reset,  delay);
 
-  res = observerP3(tic, reset, hz) 
+  res = observerP3(tic, reset, hz) ;
     and observerP1(tic, tac) 
     and observerP2(tic, tac);
-  
+tel
   
 
-tel 
+
+
+node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
+  (ack_out, ovr_out, tk_out, gr_out : bool)
+var w, accept, token : bool;  
+let 
+  
+  w = false -> req_in and (pre tk_in or pre w)
+  
+  token = false -> pre tk_in and (  or and  )  
+
+  ovr_out = false -> ovr_in and token
+
+  accept = false -> gr_in or token; 
+
+  ack_out = false -> req_in and accept
+
+/* TODO */
+
+
+tel
