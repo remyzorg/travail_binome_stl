@@ -65,21 +65,40 @@ tel
 
 
 node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
-  (ack_out, ovr_out, tk_out, gr_out : bool)
-var w, accept, token : bool;  
+  (ack_out, ovr_out, tk_out, gr_out : bool);
+var w, w_or_t : bool;  
 let 
+  tk_out = pre tk_in;  
+
+  w = false -> req_in and (tk_out or pre w);
+
+  w_or_t = w or tk_out;
+
+  ovr_out = w_or_t and ovr_in;
+
+  gr_out = not req_in or gr_in;
   
-  w = false -> req_in and (pre tk_in or pre w)
-  
-  token = false -> pre tk_in and (  or and  )  
+  ack_out = req_in or (w_or_t and gr_in);
+tel
 
-  ovr_out = false -> ovr_in and token
+node arbitre_3(rq_in_1, rq_in_2, rq_in_3 : bool) returns 
+    (ack_out_1, ack_out_2, ack_out_3, gr_out : bool);
+var tk_in_1, ovr_in_1,
+    tk_out_1, ovr_out_1, gr_in_1,
+    
+    tk_out_2, ovr_out_2, gr_in_2,
 
-  accept = false -> gr_in or token; 
+    tk_out_3, ovr_out_3, gr_in_3 : bool;
+let
+    tk_in_1 = true -> tk_out_3;
+    ovr_in_1 = false;
 
-  ack_out = false -> req_in and accept
+    ack_out_3, ovr_out_1, tk_out_1, gr_out = 
+        cell(tk_in_1, ovr_in_1, gr_out_2,  rq_in_1);
 
-/* TODO */
+    ack_out_2, ovr_out_2, tk_out_2, gr_out_2 = 
+        cell(tk_out_1, ovr_out_1, gr_out_3,  rq_in_2);
 
-
+    ack_out_3, ovr_out_3, tk_out_3, gr_out_3 = 
+        cell(tk_out_2, ovr_out_2, ovr_out_3,  rq_in_3);
 tel
