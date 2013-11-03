@@ -7,3 +7,5 @@
 *.pdf
 *.atg
 *.bak
+*.log
+*.aux

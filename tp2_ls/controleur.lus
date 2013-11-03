@@ -44,7 +44,7 @@ let
   waiting_second = false -> not reset and (tic and not pre waiting_second);
   counter = if waiting_second then 0 -> pre counter + 1 else 0;
 
-  res = if pre waiting_second and tic then counter = 2 * (hz + 1) 
+  res = true -> if pre waiting_second and tic then counter = 2 * (hz + 1) 
         else true;
 tel
 
@@ -56,15 +56,15 @@ let
   hz = if reset then delay else (0 -> pre hz);
   tic, tac = metronome(reset,  delay);
 
-  res = observerP3(tic, reset, hz) ;
-    and observerP1(tic, tac) 
-    and observerP2(tic, tac);
+  res = observerP3(tic, reset, hz)
+   and observerP1(tic, tac) 
+   and observerP2(tic, tac);
 tel
   
 
 
 
-node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
+node cell (tk_in, ovr_in, gr_in, req_in :  bool) returns
   (ack_out, ovr_out, tk_out, gr_out : bool);
 var w, w_or_t : bool;  
 let 
@@ -84,11 +84,11 @@ tel
 node arbitre_3(rq_in_1, rq_in_2, rq_in_3 : bool) returns 
   (ack_out_1, ack_out_2, ack_out_3, gr_out : bool);
 var tk_in_1, ovr_in_1,
-  tk_out_1, ovr_out_1, gr_in_1,
+  tk_out_1, ovr_out_1, gr_in_1, gr_out_1, 
     
-  tk_out_2, ovr_out_2, gr_in_2,
+  tk_out_2, ovr_out_2, gr_in_2, gr_out_2, 
 
-  tk_out_3, ovr_out_3, gr_in_3 : bool;
+  tk_out_3, ovr_out_3, gr_in_3,  gr_out_3 : bool;
 let
   tk_in_1 = true -> tk_out_3;
   ovr_in_1 = false;
@@ -101,4 +101,14 @@ let
 
   ack_out_3, ovr_out_3, tk_out_3, gr_out_3 = 
     cell(tk_out_2, ovr_out_2, ovr_out_3,  rq_in_3);
+tel
+
+  
+
+node env(S,R : bool; o : bool) returns (set,reset : bool);
+let
+  set = S and not R or (S and R and o);
+  
+  reset = R and not S or (S and R and not o);
+
 tel
