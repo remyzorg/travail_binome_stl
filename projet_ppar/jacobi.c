@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
+#include <mpi.h>
 
 /* Some constants */
 #define DEFAULT_PROBLEM_SIZE  1024
