@@ -611,6 +611,55 @@ Nous simulons l'arbitre de trois cellule sur les cas de figure suivants :
 
 \input{graph_arbitre.tex}
 
+\subsection{Vérifications}
+
+Nous cherchons maintenant à vérifier un certain nombre de propriétés sur l'arbitre.\\
+
+Afin de vérifier la propriété suivante : P1 : A tout instant, il n'y a qu'une seule
+requête autorisée à accéder au bus, nous implémentons l'observeur ci-dessous.
+
+\begin{verbatim}
+node observer_P1(ack_out_1, ack_out_2, ack_out_3 : bool) returns (res : bool);
+let
+  res = if ack_out_1 then not (ack_out_2 or ack_out_3) else
+          if ack_out_2 then not (ack_out_1 or ack_out_3) else
+            if ack_out_3 then not (ack_out_1 or ack_out_2) else
+              true;
+tel
+
+node verifier_P1(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P1(ack_out_1, ack_out_2, ack_out_3);
+tel
+\end{verbatim}
+
+L'outils Lesar détermine cette propriété P1 comme VRAIE.\\
+
+Pour vérifier la propriété P2 : A tout instant, une autorisation d'accès au bus correspond bien à une demande effective du bus, nous définissons l'observeur ci-dessous.
+\begin{verbatim}
+node observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3 : bool)
+returns (res : bool);
+let
+    res = if ack_out_1 then rq_in_1 else
+            if ack_out_2 then rq_in_2 else
+              if ack_out_3 then rq_in_3 else
+                true;
+tel
+
+node verifier_P2(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3);
+tel
+\end{verbatim}
+
+L'outils Lesar détermine cette propriété P2 comme VRAIE.
+
 \section{Indeterminisme et quasi-synchronisme}
 
 \subsection{Indeterminisme}

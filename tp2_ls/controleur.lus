@@ -77,7 +77,7 @@ let
 tel
 
 
-node cell (tk_in, ovr_in, gr_in, req_in :  bool) returns
+node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
   (ack_out, ovr_out, tk_out, gr_out : bool);
 var w, w_and_t : bool;  
 let 
@@ -98,7 +98,7 @@ tel
 node arbitre_3(rq_in_1, rq_in_2, rq_in_3 : bool) returns 
   (ack_out_1, ack_out_2, ack_out_3, gr_out : bool);
 var tk_in_1, ovr_in_1,
-  tk_out_1, ovr_out_1, gr_in_1, gr_out_1, 
+  tk_out_1, ovr_out_1,
     
   tk_out_2, ovr_out_2, gr_out_2,
 
@@ -117,7 +117,41 @@ let
     cell(tk_out_2, ovr_out_2, not ovr_out_3,  rq_in_3);
 tel
 
-  
+
+node observer_P1(ack_out_1, ack_out_2, ack_out_3 : bool) returns (res : bool);
+let
+  res = if ack_out_1 then not (ack_out_2 or ack_out_3) else
+          if ack_out_2 then not (ack_out_1 or ack_out_3) else
+            if ack_out_3 then not (ack_out_1 or ack_out_2) else
+              true;
+tel
+
+node verifier_P1(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P1(ack_out_1, ack_out_2, ack_out_3);
+tel
+
+node observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3 : bool)
+returns (res : bool);
+let
+    res = if ack_out_1 then rq_in_1 else
+            if ack_out_2 then rq_in_2 else
+              if ack_out_3 then rq_in_3 else
+                true;
+tel
+
+node verifier_P2(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3);
+tel
+
+
 
 node env(S,R : bool; o : bool) returns (set,reset : bool);
 let
