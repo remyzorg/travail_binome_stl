@@ -21,6 +21,8 @@
 \usepackage{url}
 \usepackage{textcomp}
 \usepackage{fancyhdr} 
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning}
 
 \definecolor{lightgray}{gray}{0.9}
 
@@ -37,227 +39,627 @@
 \section{Metronome}
 
 \subsection{Code Lustre}
+Afin d'implémenter le noeud lustre, nous supposons que le delai entre deux ticks
+est éguale à $hz + 1 $. Ci-contre le programme résulant. % ou en annex
+\begin{verbatim}
+node metronome (reset : bool; delay : int) returns (tic, tac : bool);
+  var hz,  n :  int; first,  state :  bool;  
+let 
+  
+  hz = if reset then delay else (0 -> pre hz);
+  first = (false -> pre first) or reset;
+  n = if not first then 1 else 
+        if reset or pre n = 0 then hz
+        else pre n - 1;
+
+  state = true -> if pre n = 0 then not pre state else pre state;
+
+  tic = n = 0 and state;
+  tac = n = 0 and not state;
+  
+  
+  assert (delay >= 0);
+
+tel 
+\end{verbatim}
+
+Nous simulons le fonctionnement du métronome dans 3 cas : 
+\begin{itemize}
+\item ticks d'horloge avant reset initial : \emph{1 à 4}
+\item reset initial avec delai de 2 avec changement de delai à 0 : \emph{-1 à 14}
+\item enchainement de reset avec delai de 0 puis delai de 1 : \emph{15 à 24}
+\end{itemize}
+
+\vspace{10mm}
+
+\input{graph2.tex}
+
 \subsection{Automate}
+L'automate déduit du code lustre ayant été trop optimisé, nous avons observé 
+l'automate du programme C généré sans optimisation. Celui-ci se résume à un état ne 
+contenant qu'une transission.\\
 
-TODO : automate en latex
+ \begin{tikzpicture}[%
+    >=stealth,
+    node distance=3cm,
+    on grid,
+    auto,
+    new state/.style={draw=green!50,very thick,fill=green!20},
+    new edge/.style={draw=green,very thick}
+  ]
+    \node[state,initial] (I)      {0};
+    \path[->] 
+        (I) edge [loop right] node[align=left] { 
+        $\tild$reset,$\tild$delay \textbf{/} \\
+        first = (init? false : first) || reset \\
+        hz = reset? delay : (init? 0 : hz) \\
+        state = init? true : ((n == 0)? (not state) : state) \\
+        init = false \\
+        n = (not first)? 1 : ((reset || (n == 0))? hz : (n - 1)) \\
+        \\
+        tic = (n == 0) $\wedge$ state \\
+        tac = (n == 0) $\wedge$ (not state)
+        } (I);
+  \end{tikzpicture}
 
-\begin{verbatim}
-      ctx->_V4 = ((ctx->_V3? _false : ctx->_V4) || ctx->_V1);
-      ctx->_V6 = (ctx->_V1? ctx->_V2 : (ctx->_V3? 0 : ctx->_V6));
-      ctx->_V7 = (ctx->_V3? _true : ((ctx->_V5 == 0)? (!ctx->_V7) : ctx->_V7));
-      ctx->_V3 = _false;
-      ctx->_V5 = ((!ctx->_V4)? 1 : ((ctx->_V1 || (ctx->_V5 == 0))? ctx->_V6 : (
-ctx->_V5 - 1)));
-      ctx->_V8 = ((ctx->_V5 == 0) && ctx->_V7);
-      metronome_O_tic(ctx->client_data, ctx->_V8);
-      ctx->_V9 = ((ctx->_V5 == 0) && (!ctx->_V7));
-      metronome_O_tac(ctx->client_data, ctx->_V9);
-      ctx->current_state = 0; break;
-\end{verbatim}
+
+%\begin{verbatim}
+%      first = (init? _false : first) || reset;
+%      hz = reset? delay : (init? 0 : hz);
+%      state = init? _true : ((n == 0)? (!state) : state);
+%      init = _false;
+%      n = (!first)? 1 : ((reset || (n == 0))? hz : (
+%n - 1));
+%
+%      tic = (n == 0) && state;
+%      tac = (n == 0) && (!state);
+%\end{verbatim}
 
 
-\begin{verbatim}
-   case 0:
-      ctx->_V5 = (ctx->_V4 == 0);
-      if(ctx->_V1){
-         ctx->_V6 = ctx->_V2;
-         ctx->_V4 = ctx->_V6;
-      } else {
-         ctx->_V6 = 0;
-         ctx->_V4 = 1;
-      }
-      ctx->_V3 = (ctx->_V4 == 0);
-      if(ctx->_V3){
-         ctx->_V7 = _true;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-      } else {
-         ctx->_V7 = _false;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-      }
-      ctx->_V8 = _false;
-      metronome_O_tac(ctx->client_data, ctx->_V8);
-      if(ctx->_V1){
-         ctx->current_state = 1; break;
-      } else {
-         ctx->current_state = 2; break;
-      }
-   break;
-   
-   case 1:
-      ctx->_V5 = (ctx->_V4 == 0);
-      if(ctx->_V1){
-         ctx->_V6 = ctx->_V2;
-         ctx->_V4 = ctx->_V6;
-      } else {
-         if(ctx->_V5){
-            ctx->_V4 = ctx->_V6;
-         } else {
-            ctx->_V4 = (ctx->_V4 - 1);
-         }
-      }
-      ctx->_V3 = (ctx->_V4 == 0);
-      if(ctx->_V3){
-         if(ctx->_V5){
-            ctx->_V7 = _false;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _true;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         } else {
-            ctx->_V7 = _true;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _false;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         }
-      } else {
-         ctx->_V7 = _false;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-         ctx->_V8 = _false;
-         metronome_O_tac(ctx->client_data, ctx->_V8);
-      }
-      if(ctx->_V5){
-         ctx->current_state = 3; break;
-      } else {
-         ctx->current_state = 1; break;
-      }
-   break;
-   
-   case 2:
-      ctx->_V5 = (ctx->_V4 == 0);
-      if(ctx->_V1){
-         ctx->_V6 = ctx->_V2;
-         ctx->_V4 = ctx->_V6;
-      } else {
-         ctx->_V4 = 1;
-      }
-      ctx->_V3 = (ctx->_V4 == 0);
-      if(ctx->_V3){
-         if(ctx->_V5){
-            ctx->_V7 = _false;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _true;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         } else {
-            ctx->_V7 = _true;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _false;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         }
-      } else {
-         ctx->_V7 = _false;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-         ctx->_V8 = _false;
-         metronome_O_tac(ctx->client_data, ctx->_V8);
-      }
-      if(ctx->_V1){
-         if(ctx->_V5){
-            ctx->current_state = 3; break;
-         } else {
-            ctx->current_state = 1; break;
-         }
-      } else {
-         if(ctx->_V5){
-            ctx->current_state = 4; break;
-         } else {
-            ctx->current_state = 2; break;
-         }
-      }
-   break;
-   
-   case 3:
-      ctx->_V5 = (ctx->_V4 == 0);
-      if(ctx->_V1){
-         ctx->_V6 = ctx->_V2;
-         ctx->_V4 = ctx->_V6;
-      } else {
-         if(ctx->_V5){
-            ctx->_V4 = ctx->_V6;
-         } else {
-            ctx->_V4 = (ctx->_V4 - 1);
-         }
-      }
-      ctx->_V3 = (ctx->_V4 == 0);
-      if(ctx->_V3){
-         if(ctx->_V5){
-            ctx->_V7 = _true;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _false;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         } else {
-            ctx->_V7 = _false;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _true;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         }
-      } else {
-         ctx->_V7 = _false;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-         ctx->_V8 = _false;
-         metronome_O_tac(ctx->client_data, ctx->_V8);
-      }
-      if(ctx->_V5){
-         ctx->current_state = 1; break;
-      } else {
-         ctx->current_state = 3; break;
-      }
-   break;
-   
-   case 4:
-      ctx->_V5 = (ctx->_V4 == 0);
-      if(ctx->_V1){
-         ctx->_V6 = ctx->_V2;
-         ctx->_V4 = ctx->_V6;
-      } else {
-         ctx->_V4 = 1;
-      }
-      ctx->_V3 = (ctx->_V4 == 0);
-      if(ctx->_V3){
-         if(ctx->_V5){
-            ctx->_V7 = _true;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _false;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         } else {
-            ctx->_V7 = _false;
-            metronome_O_tic(ctx->client_data, ctx->_V7);
-            ctx->_V8 = _true;
-            metronome_O_tac(ctx->client_data, ctx->_V8);
-         }
-      } else {
-         ctx->_V7 = _false;
-         metronome_O_tic(ctx->client_data, ctx->_V7);
-         ctx->_V8 = _false;
-         metronome_O_tac(ctx->client_data, ctx->_V8);
-      }
-      if(ctx->_V1){
-         if(ctx->_V5){
-            ctx->current_state = 1; break;
-         } else {
-            ctx->current_state = 3; break;
-         }
-      } else {
-         if(ctx->_V5){
-            ctx->current_state = 2; break;
-         } else {
-            ctx->current_state = 4; break;
-         }
-      }
-   break;
-\end{verbatim}
+Après compilation avec optimisation, l'automate généré contient 5 états.
+
+ \begin{tikzpicture}[%
+    >=stealth,
+    node distance=4cm,
+    on grid,
+    auto,
+    new state/.style={draw=green!50,very thick,fill=green!20},
+    new edge/.style={draw=green,very thick}
+  ]
+    \node[state] (S2)        {S2};
+    \node[state,initial] (S0) [left of=S2] {S0};
+    \node[state] (S1) [above of=S2] {S1};
+    \node[state] (S4) [right of=S2] {S4};
+    \node[state] (S3) [below of=S2] {S3};
+    \path[->] 
+        (S0) edge [bend left] node[align=left] { 
+            reset, n=0 / tic, $\neg$tac \\
+            reset / $\neg$tic, $\neg$tac } (S1)
+        (S0) edge [bend right] node[below,align=left] { 
+            $\neg$reset / $\neg$tic, $\neg$tac } (S2)
+
+        (S1) edge [bend left=90,looseness=3.1] node[right, align=left] { 
+            n=0 / \\ $\neg$tic, tac } (S3)
+        (S1) edge [loop above] node[align=left] { 
+            / $\neg$tic, $\neg$ tac \\
+            n=0, state / tic, $\neg$tac } (S1)
+        
+
+        (S2) edge [bend right] node[below left, align=left] {
+            reset, n=0 / \\ $\neg$tic, tac } (S3)
+        (S2) edge [bend left] node[left,align=left] { 
+            reset, n=0 / \\ tic, $\neg$tac } (S1)
+        (S2) edge [bend left] node[above,align=left] {
+            n=0 / $\neg$tic, tac } (S4)
+        (S2) edge [loop left] node[align=left] { 
+            / $\neg$tic,$\neg$tac } (S2)
+
+        (S3) edge [bend right=85,looseness=2.3] node[right,align=left] {
+            n=0 / \\ tic, $\neg$tac } (S1)
+        (S3) edge [loop below] node[align=left] {
+            / $\neg$tic,$\neg$tac} (S3)
+
+        (S4) edge [bend left] node[left, align=left] {
+            reset, n=0 / \\ $\neg$tic, tac } (S3)
+        (S4) edge [bend right] node[below left,align=left] { 
+            reset, n=0 / \\ tic, $\neg$tac } (S1)
+        (S4) edge [bend left] node[below,align=left] {
+            n=0 / $\neg$tic, tac } (S2)
+        (S4) edge [loop left] node[align=left] { 
+            / $\neg$tic,$\neg$tac } (S4);
+  \end{tikzpicture}
+
+%\begin{verbatim}
+%   case 0:
+%      ctx->_V5 = (ctx->_V4 == 0);
+%      if(ctx->_V1){
+%         ctx->_V6 = ctx->_V2;
+%         ctx->_V4 = ctx->_V6;
+%      } else {
+%         ctx->_V6 = 0;
+%         ctx->_V4 = 1; // n
+%      }
+%      ctx->_V3 = (ctx->_V4 == 0);
+%      if(ctx->_V3){ // n = 0
+%         ctx->_V7 = _true; // tic
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%      } else {
+%         ctx->_V7 = _false; // tic
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%      }
+%      ctx->_V8 = _false; // tac
+%      metronome_O_tac(ctx->client_data, ctx->_V8);
+%      if(ctx->_V1){
+%         ctx->current_state = 1; break;
+%      } else {
+%         ctx->current_state = 2; break;
+%      }
+%   break;
+%   
+%   case 1:
+%      ctx->_V5 = (ctx->_V4 == 0);
+%      if(ctx->_V1){
+%         ctx->_V6 = ctx->_V2;
+%         ctx->_V4 = ctx->_V6;
+%      } else {
+%         if(ctx->_V5){
+%            ctx->_V4 = ctx->_V6;
+%         } else {
+%            ctx->_V4 = (ctx->_V4 - 1);
+%         }
+%      }
+%      ctx->_V3 = (ctx->_V4 == 0);
+%      if(ctx->_V3){
+%         if(ctx->_V5){
+%            ctx->_V7 = _false;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _true;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         } else {
+%            ctx->_V7 = _true;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _false;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         }
+%      } else {
+%         ctx->_V7 = _false;
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%         ctx->_V8 = _false;
+%         metronome_O_tac(ctx->client_data, ctx->_V8);
+%      }
+%      if(ctx->_V5){
+%         ctx->current_state = 3; break;
+%      } else {
+%         ctx->current_state = 1; break;
+%      }
+%   break;
+%   
+%   case 2:
+%      ctx->_V5 = (ctx->_V4 == 0);
+%      if(ctx->_V1){
+%         ctx->_V6 = ctx->_V2;
+%         ctx->_V4 = ctx->_V6;
+%      } else {
+%         ctx->_V4 = 1;
+%      }
+%      ctx->_V3 = (ctx->_V4 == 0);
+%      if(ctx->_V3){
+%         if(ctx->_V5){
+%            ctx->_V7 = _false;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _true;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         } else {
+%            ctx->_V7 = _true;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _false;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%          else {
+%         ctx->_V7 = _false;
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%         ctx->_V8 = _false;
+%         metronome_O_tac(ctx->client_data, ctx->_V8);
+%      }
+%      if(ctx->_V1){
+%         if(ctx->_V5){
+%            ctx->current_state = 3; break;
+%         } else {
+%            ctx->current_state = 1; break;
+%         }
+%      } else {
+%         if(ctx->_V5){
+%            ctx->current_state = 4; break;
+%         } else {
+%            ctx->current_state = 2; break;
+%         }
+%      }
+%   break;
+%   
+%   case 3:
+%      ctx->_V5 = (ctx->_V4 == 0);
+%      if(ctx->_V1){
+%         ctx->_V6 = ctx->_V2;
+%         ctx->_V4 = ctx->_V6;
+%      } else {
+%         if(ctx->_V5){
+%            ctx->_V4 = ctx->_V6;
+%         } else {
+%            ctx->_V4 = (ctx->_V4 - 1);
+%         }
+%      }
+%      ctx->_V3 = (ctx->_V4 == 0);
+%      if(ctx->_V3){
+%         if(ctx->_V5){
+%            ctx->_V7 = _true;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _false;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         } else {
+%            ctx->_V7 = _false;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _true;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         }
+%      } else {
+%         ctx->_V7 = _false;
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%         ctx->_V8 = _false;
+%         metronome_O_tac(ctx->client_data, ctx->_V8);
+%      }
+%      if(ctx->_V5){
+%         ctx->current_state = 1; break;
+%      } else {
+%         ctx->current_state = 3; break;
+%      }
+%   break;
+%   
+%   case 4:
+%      ctx->_V5 = (ctx->_V4 == 0);
+%      if(ctx->_V1){
+%         ctx->_V6 = ctx->_V2;
+%         ctx->_V4 = ctx->_V6;
+%      } else {
+%         ctx->_V4 = 1;
+%      }
+%      ctx->_V3 = (ctx->_V4 == 0);
+%      if(ctx->_V3){
+%         if(ctx->_V5){
+%            ctx->_V7 = _true;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _false;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         } else {
+%            ctx->_V7 = _false;
+%            metronome_O_tic(ctx->client_data, ctx->_V7);
+%            ctx->_V8 = _true;
+%            metronome_O_tac(ctx->client_data, ctx->_V8);
+%         }
+%      } else {
+%         ctx->_V7 = _false;
+%         metronome_O_tic(ctx->client_data, ctx->_V7);
+%         ctx->_V8 = _false;
+%         metronome_O_tac(ctx->client_data, ctx->_V8);
+%      }
+%      if(ctx->_V1){
+%         if(ctx->_V5){
+%            ctx->current_state = 1; break;
+%         } else {
+%            ctx->current_state = 3; break;
+%         }
+%      } else {
+%         if(ctx->_V5){
+%            ctx->current_state = 2; break;
+%         } else {
+%            ctx->current_state = 4; break;
+%         }
+%      }
+%   break;
+%\end{verbatim}
 
 \subsection{Analyse de l'automate}
 
-question 3 : Analysez la structure de l'automate généré par lus2oc et
-poc lorsque lus2oc est exécuté avec l'option -2 et comparez la à
-l'automate implicite. Selon quelle(s) variable(s) l'automate implicite
-a-t-il été déplié ?
+L'automate implicite qui ne contenait qu'une seule transition comportant toute la
+logique du programme, l'automate optimiser contient 4 états de plus et des
+transitions plus ciblés. En effet l'automate implicite a été déplié selon les
+variables internes \texttt{first} et \texttt{state}. On remarque très bien
+l'alternance des \texttt{tic} et \texttt{tac} entre deux états. 
 
-
-
+Cependant on notera que cette automate indique des transitions impossibles comme 
+le passage de \texttt{S2} à \texttt{S4} et réciproquement avec l'envoie de 
+\texttt{tic} ou \texttt{tac} sans réception du premier \texttt{reset}. Cette 
+anomalie est lié au fait que dans notre programme nous forçons le \texttt{n} à 1
+tant qu'il y a first ce qui implique qu'il n'y aura jamais $\texttt{n} = 0$. Cette
+subtilité n'est pas capturé par le programme de génération de code lustre.\\
 
 \subsection{Vérification avec observateur}
+Pour chaque propriétée, nous construisons l'automate et le noeud lustre 
+observateur. \\
+
+\textbf{P1} : A tout instant, on ne peut avoir simultanément tic et tac :\\
+
+ \begin{tikzpicture}[%
+    >=stealth,
+    node distance=4cm,
+    on grid,
+    auto,
+    new state/.style={draw=green!50,very thick,fill=green!20},
+    new edge/.style={draw=green,very thick}
+  ]
+    \node[state,initial] (S0)    {S0};
+    \path[->] 
+        (S0) edge [loop above] node[align=left] { 
+            / ok } (S0)
+        (S0) edge [loop below] node[align=left] { 
+            tic, tac / $\neg$ok } (S0);
+  \end{tikzpicture}
+
+\begin{verbatim}
+node observerP1 (tic,  tac : bool) returns (res :  bool);
+let
+  res = not (tic and tac);
+tel
+\end{verbatim}
+
+\textbf{P2} : On ne peut jamais avoir deux tic consécutifs (il y a exactement un tac entre deux tics).
+
+\emph{\textbf{Remarque} : dans notre implémentation le métronome commence toujours
+ par \texttt{tic}}.\\
+
+ \begin{tikzpicture}[%
+    >=stealth,
+    node distance=4cm,
+    on grid,
+    auto,
+    new state/.style={draw=green!50,very thick,fill=green!20},
+    new edge/.style={draw=green,very thick}
+  ]
+    \node[state,initial] (S0)    {S0};
+    \node[state] (S1) [right of=S0]   {S1};
+    \path[->] 
+        (S0) edge [loop above] node[align=left] { 
+            tac / $\neg$ok } (S0)
+        (S0) edge [bend left] node[align=left] { 
+            tic / ok } (S1)
+        (S1) edge [loop above] node[align=left] { 
+            tic / $\neg$ok } (S1)
+        (S1) edge [bend left] node[align=left] { 
+            tac / ok } (S0);
+  \end{tikzpicture}
+
+\begin{verbatim}
+node observerP2 (tic, tac :  bool) returns (res :  bool);
+var last_state : bool;
+let
+  last_state = 
+    if tic then true else if tac then false else false -> pre last_state;
+  res =  
+    not (tic and pre last_state) or 
+    not (tac and not pre last_state);
+tel
+\end{verbatim}
+
+\textbf{P3} : Les occurrences consécutives de deux tic (s'il n'y a pas de reset entre eux) sont séparées par exactement 2 * delay ticks de l'horloge de base.
+
+\emph{\textbf{Remarque} : dans notre implémentation le délai entre un tic et tac est
+égale à $\texttt{delay} + 1$. Donc la propriété à vérifié est corrigé à $2 * 
+(\texttt{delay} + 1)$}.\\
+
+ \begin{tikzpicture}[%
+    >=stealth,
+    node distance=4cm,
+    on grid,
+    auto,
+    new state/.style={draw=green!50,very thick,fill=green!20},
+    new edge/.style={draw=green,very thick}
+  ]
+    \node[state,initial] (S0)    {S0};
+    \node[state] (S1) [right of=S0]   {S1};
+    \path[->] 
+        (S0) edge [loop above] node[align=left] { 
+            $\neg$tic / ok } (S0)
+        (S0) edge [bend left] node[align=left] { 
+            tic / ok } (S1)
+        (S1) edge [loop above] node[align=left] { 
+            $\neg$tic / ok } (S1)
+        (S1) edge [bend right=10] node[align=left] { 
+            reset / ok } (S0)
+        (S1) edge [bend left] node[align=left] { 
+            tic, n $= 2 * (delay + 1)$ / ok \\
+            tic, n $\neq 2 * (delay + 1)$ / $\neg$ok } (S0);
+  \end{tikzpicture}
+
+
+\begin{verbatim}
+node observerP3 (tic,  reset :  bool; hz :  int) returns (res :  bool);
+var counter :  int; waiting_second :  bool;
+let
+  assert(hz >=  0);
+
+  waiting_second = false ->
+    if reset then false else
+      if tic then not pre waiting_second else
+        pre waiting_second;
+  counter = if waiting_second then 0 -> pre counter + 1 else 0;
+
+  res = true -> if pre waiting_second and tic then pre counter = 2 * (hz + 1) 
+        else true;
+tel
+\end{verbatim}
+
+L'ensemble des observateurs est synchronisé par le noeud suivant : 
+
+\begin{verbatim}
+node organizer (reset :  bool; delay :  int) returns (res1, res2, res3 :  bool);
+var hz : int; tic, tac : bool;
+let 
+  
+  hz = if reset then delay else (0 -> pre hz);
+  tic, tac = metronome(reset,  delay);
+
+  res1 = observerP1(tic, tac);
+  res2 = observerP2(tic, tac);
+  res3 = observerP3(tic, reset, hz);
+tel
+\end{verbatim}
+
+\subsubsection{Vérification lesar}
+L'observateur doit vérifier la propriété \texttt{res1 and res2 and res3}. Nous devons
+ajouter l'hypothèse que \texttt{delay} est strictement supérieur à zéro. Cette 
+contrainte est exprimée sous forme d'une assertion.
+
+Les propriétés P1 et P2 sont jugées VRAIE par lesar. Cependant la propriété P3 est
+jugée fausse avec la trace suivante : 
+\begin{verbatim}
+--Pollux Version 2.4
+
+DIAGNOSIS:
+LOCAL VARIABLE C0 IS
+(delay)>=(0)
+LOCAL VARIABLE C1 IS
+(V50_V32_hz)>=(0)
+LOCAL VARIABLE C2 IS
+(last(V58_V155_counter))=((2)*((V50_V32_hz)+(1)))
+LOCAL VARIABLE C3 IS
+(V54_V124_n)=(0)
+LOCAL VARIABLE C4 IS
+(last(V54_V124_n))=(0)
+
+--- TRANSITION 1 ---
+C0 and C1
+--- TRANSITION 2 ---
+C0 and C1 and not reset and C3 and not C4
+--- TRANSITION 3 ---
+not C2 and C3 and not C4
+FALSE PROPERTY
+\end{verbatim}
+
+Lexar indique un problème lorsque les variables internes C2 et C4 sont à faux, 
+c'est à dire \texttt{pre counter = 2 * (hz + 1)} et \texttt{n = 0} (tic). 
+
+Nous avons testé l'observateur sous différentes conditions (avant reset, reset 
+pendant tic, reset après etc), la variable interne \texttt{waiting\_second}
+alterne correctement, le resultat calculé $count = 2 * (hz + 1)$ est toujours vrai.
+
+Toutes nos tentatives de reproduire le problème ont été infructueuses, nous supposons
+que le problème peut être lié à notre gestion de \texttt{first} et de l'implication
+implicite $first \Rightarrow n = 1$. \\
+
+En conclusion la propriété générale n'est donc pas vérifié formellement par notre noeud lustre.
 
 \section{Arbitre de McMillan}
-question 1 et 2
+
+\subsection{Modelisation lustre}
+A partir des schemas donnés, nous implémentons un noeud \texttt{cell} représentant 
+une seule cellule puis nous implémentons le noeud \texttt{arbitre3} qui représente
+un arbitre à trois céllules.\\
+
+\begin{verbatim}
+node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
+  (ack_out, ovr_out, tk_out, gr_out : bool);
+var w, w_and_t : bool;  
+let 
+  tk_out = false -> pre tk_in;  
+
+  w = false -> rq_in and (tk_out or pre w);
+
+  w_and_t = pre w and tk_out;
+
+  ovr_out = w_and_t or ovr_in;
+
+  gr_out = not rq_in and gr_in;
+  
+  ack_out = rq_in and (w_and_t or gr_in); 
+
+tel
+
+node arbitre_3(rq_in_1, rq_in_2, rq_in_3 : bool) returns 
+  (ack_out_1, ack_out_2, ack_out_3, gr_out : bool);
+var tk_in_1, ovr_in_1,
+  tk_out_1, ovr_out_1, gr_in_1,
+    
+  tk_out_2, ovr_out_2, gr_out_2,
+
+  tk_out_3, ovr_out_3, gr_out_3 : bool;
+let
+  tk_in_1 = true -> tk_out_3;
+  ovr_in_1 = false;
+
+  ack_out_1, ovr_out_1, tk_out_1, gr_out = 
+    cell(tk_in_1, ovr_in_1, gr_out_2,  rq_in_1);
+
+  ack_out_2, ovr_out_2, tk_out_2, gr_out_2 = 
+    cell(tk_out_1, ovr_out_1, gr_out_3,  rq_in_2);
+
+  ack_out_3, ovr_out_3, tk_out_3, gr_out_3 = 
+    cell(tk_out_2, ovr_out_2, not ovr_out_3,  rq_in_3);
+tel
+\end{verbatim}
+
+\subsubsection{Simulations}
+Nous simulons l'arbitre de trois cellule sur les cas de figure suivants : 
+%  à un seule requête continue (sur plusieurs cycles), à deux requêtes toujours exclusives, à deux requêtes non exclusives, à trois requêtes sporadiques et à trois requêtes continues. Vous étudierez également les quelques cycles suivant l'initialisation.
+\begin{itemize}
+\item simple étude des évenements après initialisation : \emph{1 à 5}
+\item soumission d'une requête en continue : \emph{6 à 15}
+\item soumission de deux requêtes exclusives : \emph{16 à 30}
+\item soumission de deux requêtes non exclusives : \emph{31 à 41} et \emph{44 à 60}
+\item soumission de trois requêtes : \emph{62 à 73}
+\item soumission de trois requêtes en continue : \emph{76 à 90}
+\end{itemize}
+
+\vspace{10mm}
+
+\input{graph_arbitre.tex}
+
+\subsection{Vérifications}
+
+Nous cherchons maintenant à vérifier un certain nombre de propriétés sur l'arbitre.\\
+
+Afin de vérifier la propriété suivante : P1 : A tout instant, il n'y a qu'une seule
+requête autorisée à accéder au bus, nous implémentons l'observeur ci-dessous.
+
+\begin{verbatim}
+node observer_P1(ack_out_1, ack_out_2, ack_out_3 : bool) returns (res : bool);
+let
+  res = if ack_out_1 then not (ack_out_2 or ack_out_3) else
+          if ack_out_2 then not (ack_out_1 or ack_out_3) else
+            if ack_out_3 then not (ack_out_1 or ack_out_2) else
+              true;
+tel
+
+node verifier_P1(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P1(ack_out_1, ack_out_2, ack_out_3);
+tel
+\end{verbatim}
+
+L'outils Lesar détermine cette propriété P1 comme VRAIE.\\
+
+Pour vérifier la propriété P2 : A tout instant, une autorisation d'accès au bus correspond bien à une demande effective du bus, nous définissons l'observeur ci-dessous.
+\begin{verbatim}
+node observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3 : bool)
+returns (res : bool);
+let
+    res = if ack_out_1 then rq_in_1 else
+            if ack_out_2 then rq_in_2 else
+              if ack_out_3 then rq_in_3 else
+                true;
+tel
+
+node verifier_P2(rq_in_1, rq_in_2, rq_in_3 : bool) returns (res : bool);
+var ack_out_1, ack_out_2, ack_out_3, gr_out : bool;
+let
+  ack_out_1, ack_out_2, ack_out_3, gr_out = arbitre_3(rq_in_1, rq_in_2, rq_in_3);
+
+  res = observer_P2(rq_in_1, rq_in_2, rq_in_3, ack_out_1, ack_out_2, ack_out_3);
+tel
+\end{verbatim}
+
+L'outils Lesar détermine cette propriété P2 comme VRAIE.
+
 \section{Indeterminisme et quasi-synchronisme}
 
 \subsection{Indeterminisme}
@@ -296,7 +698,6 @@ une propriété est fausse. Il faudrait en fait ajouter la possibilité
 d'exprimer des points fixes dans les formules.
 
 \subsection{Quasi-synchronisme}
-
 
 
 \end{document}
