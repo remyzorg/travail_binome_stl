@@ -112,3 +112,18 @@ let
   reset = R and not S or (S and R and not o);
 
 tel
+  
+
+
+
+node sched (op,  oq :  bool) returns (cp,  cq : bool) 
+let
+  
+  
+
+  cp = if pre last 
+
+  last = if cp then 
+  prelast = if pre last <> last then last
+
+tel
