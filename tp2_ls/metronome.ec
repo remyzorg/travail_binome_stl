@@ -12,6 +12,7 @@ var
   V9_state: bool;
 
 let
+  assert (delay >= 0);
   tic = ((V7_n = 0) and V9_state);
   tac = ((V7_n = 0) and (not V9_state));
   V6_hz = (if reset then delay else (0 -> (pre V6_hz)));
