@@ -162,14 +162,24 @@ let
 tel
 
 
-node sched (op,  oq :  bool) returns (cp,  cq : bool) 
-let
-  
-  
 
-  cp = if pre last 
 
-  last = if cp then 
-  prelast = if pre last <> last then last
+-- node sched (op,  oq :  bool) returns (cp,  cq : bool) 
+-- var change, f : bool; p,  q, none,  last :  int;
+-- let
 
-tel
+--   none = 0;
+--   p = 1;
+--   q = 2;
+
+--   f = false -> false;
+
+--   cp = op -> op and ((not pre cp and change) or (pre cp and not change));
+--   cq = oq and not op -> 
+--     oq and ((not pre cq and change) or (pre cq and not change));
+
+--   change = (false -> false) -> (0 -> pre last) = (1 -> pre pre last));
+
+--   last = 0 -> if cp then p else if cq then q else pre last; 
+
+-- tel
