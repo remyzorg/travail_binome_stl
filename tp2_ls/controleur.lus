@@ -77,7 +77,7 @@ let
 tel
 
 
-node cell (tk_in, ovr_in, gr_in, rq_in :  bool) returns
+node cell (tk_in, ovr_in, gr_in, req_in :  bool) returns
   (ack_out, ovr_out, tk_out, gr_out : bool);
 var w, w_and_t : bool;  
 let 
@@ -98,7 +98,7 @@ tel
 node arbitre_3(rq_in_1, rq_in_2, rq_in_3 : bool) returns 
   (ack_out_1, ack_out_2, ack_out_3, gr_out : bool);
 var tk_in_1, ovr_in_1,
-  tk_out_1, ovr_out_1, gr_in_1,
+  tk_out_1, ovr_out_1, gr_in_1, gr_out_1, 
     
   tk_out_2, ovr_out_2, gr_out_2,
 
@@ -115,4 +115,14 @@ let
 
   ack_out_3, ovr_out_3, tk_out_3, gr_out_3 = 
     cell(tk_out_2, ovr_out_2, not ovr_out_3,  rq_in_3);
+tel
+
+  
+
+node env(S,R : bool; o : bool) returns (set,reset : bool);
+let
+  set = S and not R or (S and R and o);
+  
+  reset = R and not S or (S and R and not o);
+
 tel

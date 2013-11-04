@@ -547,6 +547,7 @@ implicite $first \Rightarrow n = 1$. \\
 En conclusion la propriété générale n'est donc pas vérifié formellement par notre noeud lustre.
 
 \section{Arbitre de McMillan}
+
 \subsection{Modelisation lustre}
 A partir des schemas donnés, nous implémentons un noeud \texttt{cell} représentant 
 une seule cellule puis nous implémentons le noeud \texttt{arbitre3} qui représente
@@ -610,7 +611,44 @@ Nous simulons l'arbitre de trois cellule sur les cas de figure suivants :
 
 \input{graph_arbitre.tex}
 
-\section{}
+\section{Indeterminisme et quasi-synchronisme}
+
+\subsection{Indeterminisme}
+
+Dans l'énoncé le code correspondant à la valeur \texttt{reset} est
+manquant. Le code complet est le suivant :
+
+\begin{verbatim}
+node env(S,R : bool; o : bool) returns (set,reset : bool);
+let
+  set = S and not R or (S and R and o);
+  reset = R and not S or (S and R and not o);
+tel
+\end{verbatim}
+
+Les valeurs de \texttt{set} et \texttt{reset} correspondent
+respectivement aux formules $S \wedge \neg R$ et $\neg S \wedge R$ qui
+ne peuvent pas être vrais en même temps. Par contre elles peuvent être
+fausses en même temps ($R = S$). Si $R = S = vrai$, alors $set = o = \neg
+\neg o = \neg reset$. On respecte donc la première
+propriété. Sinon \texttt{set} et \texttt{reset} sont faux
+(ce qui nous donne la première configuration)
+
+On ne peut par contre pas vérifier le fait qu'à chaque instant le n\oe
+ud Lustre puisse générer les trois configurations grâce à un
+observateur. Si on utilise un observateur pour cela, il se pourraît que
+les données en entrée soient telles que l'une des trois configurations
+ne se produise jamais. Et donc nous n'aurions jamais la réponse, un
+peu à la manière d'un problème indécidable. Nous sommes face à un problème
+d'atteignabilité, alors que nous n'abordions jusque là que la propriété de
+sûreté. On ne peut pas vérifier qu'un état est atteignable
+dans le cas présent et avec les outils à notre disposition, parce
+qu'un observateur va vérifier une propriété globale sur les états. Il
+en est de même pour le model checker \texttt{xlesar} qui s'arrête si
+une propriété est fausse. Il faudrait en fait ajouter la possibilité
+d'exprimer des points fixes.
+
+\subsection{Quasi-synchronisme}
 
 
 \end{document}
