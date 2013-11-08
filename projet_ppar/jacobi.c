@@ -80,18 +80,18 @@ void generateRandomDiagonallyDominantMatrix(double *A, int w, int h, int rank) {
 
   for (i=0; i < h; i++) {
     for (j=0; j < w; j++) {
-      A[i * w + j] = randomDoubleInDomain(absMax);
+      A[i * w + j] = absMax;//randomDoubleInDomain(absMax);
     }
-    A[i * w + i + h * rank] = 2.0 + randomDoubleInDomain(1.0);
+    A[i * w + i + h * rank] = 3.0; //+ randomDoubleInDomain(1.0);
   }
 }
 
 /* Generate a random vector of size n */
-void generateRandomVector(double *v, int n) {
+void generateRandomVector(double *v, int n, int rank) {
   int i;
 
   for (i=0;i<n;i++) {
-    v[i] = randomDoubleInDomain(1024.0);
+    v[i] = (i + rank * n) % 1024;//randomDoubleInDomain(1024.0);
   }
 }
 
@@ -159,28 +159,32 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
   xPrev = x;
   xNew = xp;
   iter = 0;
-  printf("####### matrix ######\n");
+//  printf("####### matrix ######\n");
 
-  printMatrix(A, n, hlocal);
+//  printMatrix(A, n, hlocal);
+//  printVector(b, n);
   
-  printf("####### before do ######\n");
+//  printf("####### before do ######\n");
 
   do {
     iter++;
     delta = 0.0;
     for (i = 0; i < hlocal; i++) {
       c = b[i];
+//      printf("#%d b : %1.2e\n", rank, c);
       for (j = 0; j < n; j++) {
-	if (i != (j + rank * hlocal)) { // si pas diagonale
+	if (j != (i + rank * hlocal)) { // si pas diagonale
+//          printf("c #%d: %1.2e\n",rank,  c); 
 	  c -= A[i * n + j] * xPrev[j];
-	}
+        }
       }
-      /* printf("c #%d: %f\n",rank,  c); */
+//      printf("c_ #%d: %3.2e\n",rank,  c); 
       /* double diag = A[i * n + i + rank * hlocal]; */
       /* printf("d #%d: %f\n",rank,  diag); */
       c /= A[i * n + i + rank * hlocal]; // division par diagonale
+//      printf("c/ #%d: %1.2e\n",rank,  c); 
       /* printf("c #%d: %f\n",rank,  c); */
-      d = fabs(xPrev[i] - c);
+      d = fabs(xPrev[i + rank * hlocal] - c);
       if (d > delta) delta = d;
       xNew[i] = c;
     }
@@ -191,7 +195,14 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     
     /* printf("#%d is sending : ", rank); */
     /* printVector(xNew, hlocal); */
+//    printf("#%d delta : %d\n", rank, d);
     
+//    printf("#%d xPrev : ", rank);
+//    printVector(xPrev, n);
+//    printf("#%d xNew : ", rank);
+//    printVector(xNew, hlocal);
+//    printf("-----\n");
+
     MPI_Allgather(xNew, hlocal, MPI_DOUBLE, xPrev, hlocal, MPI_DOUBLE,
 		  MPI_COMM_WORLD);
 
@@ -200,7 +211,6 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     //    xNew = xt;
     convergence = (delta < eps);
 
-    
   } while ((!convergence) && (iter < maxIter));
 
   return xPrev;
@@ -274,7 +284,7 @@ int main(int argc, char *argv[]) {
      right-hand side b 
   */
   generateRandomDiagonallyDominantMatrix(A, n, hlocal, rank);
-  generateRandomVector(b, hlocal);
+  generateRandomVector(b, hlocal, rank);
   
   /* Perform Jacobi iteration 
 
@@ -283,13 +293,14 @@ int main(int argc, char *argv[]) {
   */
   gettimeofday(&before, NULL);
   x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n,
-		      JACOBI_MAX_ITER, hlocal, rank);
+ 		      JACOBI_MAX_ITER, hlocal, rank);
   gettimeofday(&after, NULL);
 
   /* Compute the residual */
   computeResidual(r, A, x, b, n, hlocal, rank);
 
-  printVector(r, n);
+//  printVector(r, n);
+//  printVector(x, n);
 
   MPI_Allgather(r, hlocal, MPI_DOUBLE, r, hlocal, MPI_DOUBLE,
 		MPI_COMM_WORLD);
@@ -299,7 +310,7 @@ int main(int argc, char *argv[]) {
   /* printVector(xA, n); */
   /* printVector(xB, hlocal); */
   /* printVector(b, n); */
-  printVector(r, n);
+//  printVector(r, n);
   /* printVector(x, n); */
   
 
