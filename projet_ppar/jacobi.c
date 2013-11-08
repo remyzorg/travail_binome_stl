@@ -25,6 +25,27 @@
 #define JACOBI_MAX_RESIDUAL   1e-7
 #define DISPLAY_FIRST_ENTRIES 10
 
+
+void printVector(double* vector, int size) {
+  int i;
+
+  for(i = 0; i < size; i++) {
+    printf("%1.2e ", vector[i]);
+  }
+  printf("\n");
+}
+
+void printMatrix(double* vector, int w, int h) {
+  int i, j;
+
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+    printf("%1.2e ", vector[i * w + j]);
+    }
+    printf("\n");
+  }
+}
+
 /* Compute time differences in seconds */
 double computeTimeDifferenceInSeconds(struct timeval *before, struct timeval *after) {
   double secs, usecs;
@@ -51,17 +72,17 @@ double randomDoubleInDomain(double absMax) {
 /* Generate a matrix of size n * n that is certainly diagonally
    dominant 
 */
-void generateRandomDiagonallyDominantMatrix(double *A, int n) {
+void generateRandomDiagonallyDominantMatrix(double *A, int w, int h, int rank) {
   int i, j;
   double absMax;
 
-  absMax = 0.5 / ((double) n);
+  absMax = 0.5 / ((double) w);
 
-  for (i=0;i<n;i++) {
-    for (j=0;j<n;j++) {
-      A[i * n + j] = randomDoubleInDomain(absMax);
+  for (i=0; i < h; i++) {
+    for (j=0; j < w; j++) {
+      A[i * w + j] = randomDoubleInDomain(absMax);
     }
-    A[i * n + i] = 2.0 + randomDoubleInDomain(1.0);
+    A[i * w + i + h * rank] = 2.0 + randomDoubleInDomain(1.0);
   }
 }
 
@@ -78,14 +99,15 @@ void generateRandomVector(double *v, int n) {
    right-hand side b and a n sized solution x, using no extra
    precision. 
 */
-void computeResidual(double *r, double *A, double *x, double *b, int n) {
+void computeResidual(double *r, double *A, double *x, double *b,
+		     int w, int h, int rank) {
   int i, j;
   double c;
 
-  for (i=0;i<n;i++) {
+  for (i = 0; i < h; i++) {
     c = b[i];
-    for (j=0;j<n;j++) {
-      c -= A[i * n + j] * x[j];
+    for (j = 0; j < w; j++) {
+      c -= A[i * w + j] * x[j];
     }
     r[i] = c;
   }
@@ -124,7 +146,8 @@ double maxAbsVector(double *v, int n) {
    both the final result has been stored.
 
 */
-double *jacobiIteration(double *x, double *xp, double *A, double *b, double eps, int n, int maxIter) { 
+double *jacobiIteration(double *x, double *xp, double *A, double *b,
+			double eps, int n, int maxIter, int hlocal, int rank) { 
   int i, j, convergence, iter; 
   double c, d, delta;
   double *xNew, *xPrev, *xt;
@@ -136,25 +159,48 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b, double eps,
   xPrev = x;
   xNew = xp;
   iter = 0;
+  printf("####### matrix ######\n");
+
+  printMatrix(A, n, hlocal);
+  
+  printf("####### before do ######\n");
+
   do {
     iter++;
     delta = 0.0;
-    for (i=0;i<n;i++) {
+    for (i = 0; i < hlocal; i++) {
       c = b[i];
-      for (j=0;j<n;j++) {
-	if (i != j) {
+      for (j = 0; j < n; j++) {
+	if (i != (j + rank * hlocal)) { // si pas diagonale
 	  c -= A[i * n + j] * xPrev[j];
 	}
       }
-      c /= A[i * n + i];
+      /* printf("c #%d: %f\n",rank,  c); */
+      /* double diag = A[i * n + i + rank * hlocal]; */
+      /* printf("d #%d: %f\n",rank,  diag); */
+      c /= A[i * n + i + rank * hlocal]; // division par diagonale
+      /* printf("c #%d: %f\n",rank,  c); */
       d = fabs(xPrev[i] - c);
       if (d > delta) delta = d;
       xNew[i] = c;
     }
-    xt = xPrev;
-    xPrev = xNew; 
-    xNew = xt;
+      //    xt = xPrev;
+
+    // sémantique :
+    //    xPrev = xNew;
+    
+    /* printf("#%d is sending : ", rank); */
+    /* printVector(xNew, hlocal); */
+    
+    MPI_Allgather(xNew, hlocal, MPI_DOUBLE, xPrev, hlocal, MPI_DOUBLE,
+		  MPI_COMM_WORLD);
+
+    /* printf("#%d has received : ", rank); */
+    /* printVector(xPrev, n); */
+    //    xNew = xt;
     convergence = (delta < eps);
+
+    
   } while ((!convergence) && (iter < maxIter));
 
   return xPrev;
@@ -167,24 +213,34 @@ int main(int argc, char *argv[]) {
   double maxAbsRes;
   struct timeval before, after;
 
+  MPI_Init( &argc, &argv );
+  int rank;
+  int numproc;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+
+
+  
   /* Get the argument that indicates the problem size */
   if(argc > 1) {
     n = atoi(argv[1]);
   } else {
     n = DEFAULT_PROBLEM_SIZE;
-    fprintf(stderr, "Using default problem size n = %d\n",n);
+    /* fprintf(stderr, "Using default problem size n = %d\n",n); */
   }
+
+  int hlocal = n / numproc;
 
   /* Initialize the random seed */
   srandom((unsigned int) time(NULL));
 
   /* Allocate memory */
-  if ((A = (double *) calloc(n * n, sizeof(double))) == NULL) {
+  if ((A = (double *) calloc(hlocal * n, sizeof(double))) == NULL) {
     fprintf(stderr, "Not enough memory.\n");
     return 1;
   }
 
-  if ((b = (double *) calloc(n, sizeof(double))) == NULL) {
+  if ((b = (double *) calloc(hlocal, sizeof(double))) == NULL) {
     free(A);
     fprintf(stderr, "Not enough memory.\n");
     return 1;
@@ -197,7 +253,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if ((xB = (double *) calloc(n, sizeof(double))) == NULL) {
+  if ((xB = (double *) calloc(hlocal, sizeof(double))) == NULL) {
     free(A);
     free(b);
     free(xA);
@@ -217,8 +273,8 @@ int main(int argc, char *argv[]) {
   /* Generate a random diagonally dominant matrix A and a random
      right-hand side b 
   */
-  generateRandomDiagonallyDominantMatrix(A, n);
-  generateRandomVector(b, n);
+  generateRandomDiagonallyDominantMatrix(A, n, hlocal, rank);
+  generateRandomVector(b, hlocal);
   
   /* Perform Jacobi iteration 
 
@@ -226,11 +282,26 @@ int main(int argc, char *argv[]) {
 
   */
   gettimeofday(&before, NULL);
-  x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n, JACOBI_MAX_ITER);
+  x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n,
+		      JACOBI_MAX_ITER, hlocal, rank);
   gettimeofday(&after, NULL);
 
   /* Compute the residual */
-  computeResidual(r, A, x, b, n);
+  computeResidual(r, A, x, b, n, hlocal, rank);
+
+  printVector(r, n);
+
+  MPI_Allgather(r, hlocal, MPI_DOUBLE, r, hlocal, MPI_DOUBLE,
+		MPI_COMM_WORLD);
+
+  /* printf("###### Banane : \n"); */
+  /* printMatrix(A, n, hlocal); */
+  /* printVector(xA, n); */
+  /* printVector(xB, hlocal); */
+  /* printVector(b, n); */
+  printVector(r, n);
+  /* printVector(x, n); */
+  
 
   /* Compute the maximum absolute value of the residual */
   maxAbsRes = maxAbsVector(r, n);
@@ -239,10 +310,10 @@ int main(int argc, char *argv[]) {
      entries of the solution vector and corresponding residual 
   */
   printf("Maximum absolute value of residual: %1.8e\n", maxAbsRes);
-  printf("\n");
-  for (i=0;i<DISPLAY_FIRST_ENTRIES;i++) {
-    printf("%1.8e\t%1.8e\n", x[i], r[i]);
-  }
+  /* printf("\n"); */
+  /* for (i=0;i<DISPLAY_FIRST_ENTRIES;i++) { */
+  /*   printf("%1.8e\t%1.8e\n", x[i], r[i]); */
+  /* } */
   printf("\n");
 
   /* Decide if residual is small enough */
@@ -255,12 +326,14 @@ int main(int argc, char *argv[]) {
   /* Display time for the Jacobi iteration */
   printf("Computing the solution with Jacobi iteration took %12.6fs\n", computeTimeDifferenceInSeconds(&before, &after));
 
-  /* Free the memory */
+  /* /\* Free the memory *\/ */
   free(A);
   free(b);
   free(xA);
   free(xB);
   free(r);
+
+  MPI_Finalize();
 
   /* Return success */
   return 0;
