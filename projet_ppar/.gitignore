@@ -1,4 +1,5 @@
 jacobi
+jacobi_seq
 *.aux
 *.log
 *.pdf
