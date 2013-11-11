@@ -71,13 +71,13 @@ le même résultat une fois celui-ci mit en commun.
 
 \subsection{Implémentation naïve}
 
-L'approche la plus naïve pour implémenter Jacobi à l'aide de la
-méthode de Jacobi est d'utiliser une procédure de communication
-collective : \texttt{MPI\_Allgather}. Celle-ci est faite pour
-servir notre intérêt : réunir en un seul éléments des éléments d'un
-même résultat, comme indiqué figure~\ref{allgather}. Le but est de
-découper la matrice en $P$ (nombre de processus) blocs de lignes et de
-réunir les résultats.
+L'approche la plus naïve pour implémenter Jacobi à l'aide de MPI est
+d'utiliser une procédure de communication collective
+: \texttt{MPI\_Allgather}. Celle-ci est faite pour servir notre
+intérêt : réunir en un seul éléments les parties d'un même résultat,
+comme indiqué figure~\ref{allgather}. Le but est de découper la
+matrice en $P$ (nombre de processus) blocs de lignes et de réunir les
+résultats.
 
 
 \begin{figure}
@@ -94,7 +94,7 @@ diagonale ne se trouvent pas en $A[i * h + i] $. Si $hlocal$ est la
 hauteur de bloc, on aura une diagonale en $A[i * h + i + hlocal *
 rang]$ qui correspond à un décalage de la diagonale de $rang$ fois la
 hauteur de bloc.
-Le pseudo code est détaillé dans l'algorithme~\ref{jacnaif}
+Le pseudo code est détaillé dans l'algorithme~\ref{jacnaif}.
 
 \begin{algorithm}[H]
  \SetLine % For v3.9
@@ -120,13 +120,11 @@ Le pseudo code est détaillé dans l'algorithme~\ref{jacnaif}
 
 Cette méthode a l'avantage d'être très simple à la fois à mettre
 en \oe uvre et à relire. Mais elle a un énorme problème de
-performaces. A chaque itération on a $n - 1$ communications par
+performances. A chaque itération on a $n - 1$ communications par
 processus et donc au total une complexité en messages de $n*(n - 1)$,
-soit $O(n^2)$. Ceci n'est pas souhaitable, car la solution sera
-inutilisable si le nombre de processus grandit trop (perte en
-efficacité). C'est pour cette raison que nous nous dirigeons vers une
-autre architecture.
-
+soit $O(n^2)$. Ceci serait envisageable si il était possible de
+recouvrir les communications par du calcul, or ce n'est pas le
+cas. C'est pourquoi nous nous tournons vers une autre architecture.
 
 \subsection{Implémentation en anneau}
 
