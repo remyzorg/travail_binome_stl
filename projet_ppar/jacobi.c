@@ -171,18 +171,18 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     delta = 0.0;
     for (i = 0; i < hlocal; i++) {
       c = b[i];
-//      printf("#%d b : %1.2e\n", rank, c);
+      //      printf("#%d b : %1.2e\n", rank, c);
       for (j = 0; j < n; j++) {
-	if (j != (i + rank * hlocal)) { // si pas diagonale
-//          printf("c #%d: %1.2e\n",rank,  c); 
-	  c -= A[i * n + j] * xPrev[j];
+        if (j != (i + rank * hlocal)) { // si pas diagonale
+          //          printf("c #%d: %1.2e\n",rank,  c); 
+          c -= A[i * n + j] * xPrev[j];
         }
       }
-//      printf("c_ #%d: %3.2e\n",rank,  c); 
+      //      printf("c_ #%d: %3.2e\n",rank,  c); 
       /* double diag = A[i * n + i + rank * hlocal]; */
       /* printf("d #%d: %f\n",rank,  diag); */
       c /= A[i * n + i + rank * hlocal]; // division par diagonale
-//      printf("c/ #%d: %1.2e\n",rank,  c); 
+      //      printf("c/ #%d: %1.2e\n",rank,  c); 
       /* printf("c #%d: %f\n",rank,  c); */
       d = fabs(xPrev[i + rank * hlocal] - c);
       if (d > delta) delta = d;
