@@ -66,8 +66,10 @@ précédente et celui de l'opération courante soit inférieure à un
 $\epsilon$ petit, c'est à dire la convergence.
 
 Dans le cas parallèle la condition d'arrêt ne change pas, mais elle
-doit être calculée sur tout les processus en même temps, qui auront,
-le même résultat une fois celui-ci mit en commun.
+doit être calculée sur tous les processus en même temps, c'est quand tous les
+processus convergereont que l'ensemble des processus s'arrêteront. Si un
+processus fini en avance, il continuera à envoyer les bonnes informations
+aux autres sans faire de calcules.
 
 \subsection{Implémentation naïve}
 
@@ -127,6 +129,34 @@ recouvrir les communications par du calcul, or ce n'est pas le
 cas. C'est pourquoi nous nous tournons vers une autre architecture.
 
 \subsection{Implémentation en anneau}
+Une solution pour éviter d'utiliser des routines de communications collectives
+est d'utiliser une configuration en anneau. Ainsi, au lieu de reconstruire à 
+chaque itération le \texttt{x-précédent} dans sa globalité, chaque processus
+calculera partiellement son morceau de \texttt{x} en partageant sont morceau de 
+\texttt{x-précédent} à la manière d'un \emph{token}. 
+
+A la première itération, un processus calculera son \texttt{x} de départ. Aux
+itérations suivantes, le processus calculera partiellement le nouveaux vecteur
+\texttt{x} avec le morceau de \texttt{x-précédent} qu'il possède. À la fin de 
+ce calcule il enverra ce morceau de \texttt{x-précédent} au processus de rang
+$n + 1$ et recevra le morceau de \texttt{x-précédent} du processus de rang
+$n - 1$. Lorsqu'un tour complet de l'anneau sera effectué, le calcule des 
+\texttt{x} locaux seront terminés, cela marquera la fin d'une itération.
+
+La gestion de l'arrêt est elle aussi gérée sans routine de communication 
+collective : à la fin d'une itération, tous les processus envoient 
+$convergence~de~gauche * convergence$ à leur voisin de droite avec $convergence$
+initialisé à leur \emph{convergence locale}. Au bout d'un tour d'anneau, tous
+les processus connaitrons l'état global de convergence.
+
+Les points délicats de l'implémentation en anneau se retrouvent dans le 
+calcule du \texttt{delta} et le calcul partiel du nouveau \texttt{x}. Dans le 
+calcule du \texttt{delta}, on aura veillé à bien utiliser le \texttt{x précédent}
+du procéssus courant et non le \texttt{x précédent} \emph{manipulé} à une itération
+de l'anneau. Dans le calcul partiel du nouveau \texttt{x}, on aura veillé à bien
+utiliser la somme partielle précédente plutôt que l'initialiser avec le vecteur
+\texttt{b}. On notera que la division par la diagonale et le calcule de 
+\texttt{delta} ne se fait qu'une fois le tour total de l'anneau effectué.
 
 \subsection{Matrice non divisible par $P$}
 
