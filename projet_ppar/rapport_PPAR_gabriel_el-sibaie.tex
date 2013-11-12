@@ -57,6 +57,8 @@ de l'exercice.
 
 \section{Implémentation} 
 
+On notera que les calculs ont été réalisés en salle 31-207.
+
 \subsection{Condition de terminaison en parallèle}
 
 La méthode de Jacobi correspond à une recherche de point fixe. On
@@ -212,8 +214,10 @@ Le pseudo code est détaillé dans l'algorithme~\ref{jacanneau}.
 \end{algorithm}
 
 Les perfomances de cet algorithme sont vraiment très très proches de
-ceux obtenus avec la version naïve, c'est à dire entre 9~10 secondes
-pour calculer Jacobi avec 10 processus sur une matrice de taille 67000
+ceux obtenus avec la version naïve, c'est à dire 9 secondes
+en moyenne pour calculer Jacobi avec 10 processus sur une matrice de taille
+67000.
+
 
 
 \subsection{Matrice non divisible par $P$}
@@ -259,11 +263,12 @@ qu'un seul processus cible.
 \section{Optimisations}
 
 \subsection{Parallèlisation hybride : MPI + OpenMP}
-Le calcul du vecteur \texttt{x} est bien découpé sur plusieurs processus possédant
-une partie de la matrice totale. Un axe d'optimisation de ce calcul est la
-parallélisation du calcul interne à chaque processus qui parcours les lignes de la
-matrice local. Cette parallélisation est possible car le calcul de chaque 
-composante du vecteur \texttt{x} est indépendante.
+Le calcul du vecteur \texttt{x} est bien découpé sur plusieurs
+processus possédant une partie de la matrice totale. Un axe
+d'optimisation de ce calcul est la parallélisation du calcul interne à
+chaque processus qui parcours les lignes de la matrice local. Cette
+parallélisation est possible car le calcul de chaque composante du
+vecteur \texttt{x} est indépendante.
 
 Cette optimisation s'éffectue en rajoutant la directive parallele suivantes : \\
 \verb|#pragma omp parallel for default(shared) private(c, d)| au dessus de la
@@ -272,9 +277,10 @@ boucle de parcours des lignes de la matrice (\emph{pour i} dans l'algoritme~
 propres à chaque itération et sont donc définie comme privés. Le restes des
 variables sont partagées.\\
 
-Le gain en performance obtenue par une approche hybride MPI + OpenMP est non
-négliable avec un temps d'exécution presque divisé par deux entre l'implémentation
-simple et l'implémentation avec OpenMP.
+Le gain en performance obtenue par une approche hybride MPI + OpenMP
+est non négliable avec un temps d'exécution presque divisé par deux
+entre l'implémentation simple et l'implémentation avec OpenMP. On
+passe de 9 secondes en moyenne à 6 secondes avec l'anneau en hybride.
 
 \section{Conclusion}
 
