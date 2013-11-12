@@ -130,6 +130,20 @@ double maxAbsVector(double *v, int n) {
   return res;
 }
 
+void init_counts(int numproc, int hlocal,
+		 int size, int * recvcounts, int * displs){
+  int i;
+  recvcounts = (int *) calloc (numproc, sizeof(int));
+  displs = (int *) calloc (numproc, sizeof(int));
+
+  for (i = 0; i < numproc; i++){
+    recvcounts[i] = hlocal;
+    displs[i] = hlocal * i;
+  }
+  recvcounts[numproc - 1] = hlocal + size % numproc;
+  
+}
+
 /* Perform Jacobi iteration on a n * n sized, diagonally dominant
    matrix A and a n sized right-hand size b.
 
@@ -322,6 +336,12 @@ int main(int argc, char *argv[]) {
   }
 
 
+  int * recvcounts;
+  int * displs;
+
+  init_counts(numproc, hlocal, n,recvcounts, displs);
+  
+
   /* Generate a random diagonally dominant matrix A and a random
      right-hand side b 
   */
@@ -338,9 +358,11 @@ int main(int argc, char *argv[]) {
  		      JACOBI_MAX_ITER, hlocal, rank, numproc);
   gettimeofday(&after, NULL);
 
-
   MPI_Allgather(x, hlocal, MPI_DOUBLE, result, hlocal, MPI_DOUBLE,
 		MPI_COMM_WORLD);
+
+  /* MPI_Allgatherv(x, hlocal, MPI_DOUBLE, result, recvcounts, displs, */
+  /* 		  MPI_DOUBLE, MPI_COMM_WORLD); */
 
   /* Compute the residual */
   computeResidual(r, A, result, b, n, hlocal, rank);
