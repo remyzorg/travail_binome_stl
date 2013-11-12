@@ -281,6 +281,7 @@ int main(int argc, char *argv[]) {
   double maxAbsRes;
   struct timeval before, after;
 
+
   MPI_Init( &argc, &argv );
   int rank;
   int numproc;
@@ -296,6 +297,12 @@ int main(int argc, char *argv[]) {
     n = DEFAULT_PROBLEM_SIZE;
     /* fprintf(stderr, "Using default problem size n = %d\n",n); */
   }
+
+  if (numproc % n == 0){
+      fprintf(stderr, "Process number must be a divisor of the matrix size.\n");
+      return 1;
+  } 
+
 
   int hlocal = n / numproc;
 
