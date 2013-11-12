@@ -16,6 +16,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <mpi.h>
+#include <string.h>
 
 /* Some constants */
 #define DEFAULT_PROBLEM_SIZE  1024
@@ -86,6 +87,8 @@ void generateRandomDiagonallyDominantMatrix(double *A, int w, int h, int rank) {
   }
 }
 
+
+
 /* Generate a random vector of size n */
 void generateRandomVector(double *v, int n, int rank) {
   int i;
@@ -151,11 +154,13 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
                         int proc_num) { 
   int i, j, convergence, iter; 
   double c, d, delta;
-  double *xNew, *xPrev, *xt;
+  double *xNew, *xPrev, *myPrev, *xt;
 
   for (i=0;i<n;i++) {
     x[i] = 1.0;
   }
+
+  myPrev = (double*)calloc(hlocal, sizeof(double));
 
   xPrev = x;
   xNew = xp;
@@ -165,67 +170,75 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
   int prev = (rank - 1) < 0 ? proc_num - 1 : rank - 1;
   int next = (rank + 1) >= proc_num ? 0 : rank + 1;
   int k;
+  int actual_j;
+  double diagonale;
+  int comm = 0;
 
   do {
     iter++;
     delta = 0.0;
-    for (i = 0; i < hlocal; i++) {
-      c = b[i];
+
+    for(k = 0; k < proc_num; k++) {
+      source = (k + rank) % proc_num;
+
+      for (i = 0; i < hlocal; i++) {
+        diagonale = A[i * n + i + rank * hlocal]; 
+
+        if(k == 0) {
+          c = b[i];
+        } else {
+          c = xNew[i];
+        }
       
-      for(k = 0; k < proc_num; k++) {
-        source = (k + rank) % proc_num;
+
 
         for (j = 0; j < hlocal; j++) {
-          if (j != (i + rank * hlocal)) { // si pas diagonale
-            c -= A[i * n + j + source * hlocal] * xPrev[j];
+          actual_j = j + source * hlocal;
+          if (actual_j != (i + rank * hlocal)) { // si pas diagonale
+            c -= A[i * n + actual_j] * xPrev[j];
           }
         } // for j
 
-        if(iter != 0) {
 
-          MPI_Sendrecv(
-                xPrev, hlocal, MPI_DOUBLE, next, 0,
-                xPrev, hlocal, MPI_DOUBLE, prev, 0,
-                MPI_COMM_WORLD, status);
-          
-          /* if(rank == 0) { */
-          /*   printf("#%d is sending : ", rank); */
-          /*   printVector(xPrev, hlocal); */
+        if(k == proc_num - 1) {
+          c /= A[i * n + i + rank * hlocal]; // division par diagonale
+  
+          d = fabs(myPrev[i] - c);
+          if (d > delta) delta = d;
 
-          /*   MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD); */
-          /* } */
-
-          /* MPI_Recv(xPrev, hlocal, MPI_DOUBLE, next, 0, MPI_COMM_WORLD, status); */
-          /* printf("#%d has received : ", rank); */
-          /* printVector(xPrev, hlocal); */
-
-          /* if(rank != 0) { */
-          /*   printf("#%d is sending : ", rank); */
-          /*   printVector(xPrev, hlocal); */
-
-          /*   MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD); */
-          /* } */
-        } // if first iter
-
-      } // for k
-
-      c /= A[i * n + i + rank * hlocal]; // division par diagonale
+        }
       
-      d = fabs(xPrev[i + rank * hlocal] - c);
-      if (d > delta) delta = d;
-      xNew[i] = c;
-    } // for i
+        xNew[i] = c;
+
+      } // for i
+
+
+      if(iter != 0) {
+
+      
+        comm++;
+        MPI_Sendrecv(
+              xPrev, hlocal, MPI_DOUBLE, next, 0,
+              xPrev, hlocal, MPI_DOUBLE, prev, 0,
+              MPI_COMM_WORLD, status);
+
+      } // if first iter
+
+    } //for k
+
+
 
     xt = xPrev;
 
     // sémantique :
     xPrev = xNew;
+    memcpy(myPrev, xPrev, hlocal * sizeof(double));
     
     
-    printf("#%d xPrev : ", rank);
-    printVector(xPrev, n);
+    //printf("%d/%d xPrev : ", rank, iter);
+    //printVector(xPrev, hlocal);
 
-    
+    //printf("comm : %d\n", comm); 
     xNew = xt;
     convergence = (delta < eps);
 
@@ -237,7 +250,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 /* A small testing main program */
 int main(int argc, char *argv[]) {
   int i, n;
-  double *A, *b, *x, *r, *xA, *xB;
+  double *A, *b, *x, *r, *xA, *xB, *result;
   double maxAbsRes;
   struct timeval before, after;
 
@@ -281,7 +294,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if ((xB = (double *) calloc(hlocal, sizeof(double))) == NULL) {
+  if ((xB = (double *) calloc(n, sizeof(double))) == NULL) {
     free(A);
     free(b);
     free(xA);
@@ -297,6 +310,17 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Not enough memory.\n");
     return 1;
   }
+
+  if ((result = (double *) calloc(n, sizeof(double))) == NULL) {
+    free(A);
+    free(b);
+    free(xA);
+    free(xB);
+    free(r);
+    fprintf(stderr, "Not enough memory.\n");
+    return 1;
+  }
+
 
   /* Generate a random diagonally dominant matrix A and a random
      right-hand side b 
@@ -314,26 +338,19 @@ int main(int argc, char *argv[]) {
  		      JACOBI_MAX_ITER, hlocal, rank, numproc);
   gettimeofday(&after, NULL);
 
-  /* Compute the residual */
-  computeResidual(r, A, x, b, n, hlocal, rank);
 
-//  printVector(r, n);
-//  printVector(x, n);
-
-  MPI_Allgather(r, hlocal, MPI_DOUBLE, r, hlocal, MPI_DOUBLE,
+  MPI_Allgather(x, hlocal, MPI_DOUBLE, result, hlocal, MPI_DOUBLE,
 		MPI_COMM_WORLD);
 
-  /* printf("###### Banane : \n"); */
-  /* printMatrix(A, n, hlocal); */
-  /* printVector(xA, n); */
-  /* printVector(xB, hlocal); */
-  /* printVector(b, n); */
+  /* Compute the residual */
+  computeResidual(r, A, result, b, n, hlocal, rank);
+
 //  printVector(r, n);
-  /* printVector(x, n); */
-  
+  MPI_Allgather(r, hlocal, MPI_DOUBLE, result, hlocal, MPI_DOUBLE,
+		MPI_COMM_WORLD);
 
   /* Compute the maximum absolute value of the residual */
-  maxAbsRes = maxAbsVector(r, n);
+  maxAbsRes = maxAbsVector(result, n);
   
   /* Display maximum absolute value of residual and a couple of
      entries of the solution vector and corresponding residual 
