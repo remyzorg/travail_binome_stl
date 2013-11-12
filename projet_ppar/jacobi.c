@@ -178,38 +178,18 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
           c -= A[i * n + j] * xPrev[j];
         }
       }
-      //      printf("c_ #%d: %3.2e\n",rank,  c); 
-      /* double diag = A[i * n + i + rank * hlocal]; */
-      /* printf("d #%d: %f\n",rank,  diag); */
-      c /= A[i * n + i + rank * hlocal]; // division par diagonale
-      //      printf("c/ #%d: %1.2e\n",rank,  c); 
-      /* printf("c #%d: %f\n",rank,  c); */
-      d = fabs(xPrev[i + rank * hlocal] - c);
+          c /= A[i * n + i + rank * hlocal]; // division par diagonale
+           d = fabs(xPrev[i + rank * hlocal] - c);
       if (d > delta) delta = d;
-      xNew[i] = c;
-    }
-      //    xt = xPrev;
 
-    // sémantique :
-    //    xPrev = xNew;
-    
-    /* printf("#%d is sending : ", rank); */
-    /* printVector(xNew, hlocal); */
-//    printf("#%d delta : %d\n", rank, d);
-    
-//    printf("#%d xPrev : ", rank);
-//    printVector(xPrev, n);
-//    printf("#%d xNew : ", rank);
-//    printVector(xNew, hlocal);
-//    printf("-----\n");
+
+      xNew[i] = c;
+      }
 
     MPI_Allgather(xNew, hlocal, MPI_DOUBLE, xPrev, hlocal, MPI_DOUBLE,
 		  MPI_COMM_WORLD);
 
-    /* printf("#%d has received : ", rank); */
-    /* printVector(xPrev, n); */
-    //    xNew = xt;
-    convergence = (delta < eps);
+      convergence = (delta < eps);
 
   } while ((!convergence) && (iter < maxIter));
 
@@ -295,6 +275,7 @@ int main(int argc, char *argv[]) {
   x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n,
  		      JACOBI_MAX_ITER, hlocal, rank);
   gettimeofday(&after, NULL);
+
 
   /* Compute the residual */
   computeResidual(r, A, x, b, n, hlocal, rank);
