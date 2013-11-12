@@ -1,12 +1,12 @@
 
 all:
-	mpicc -o jacobi jacobi.c
+	mpicc -O3 -o jacobi jacobi.c
 
 both:
 	mpicc -o jacobi jacobi.c && mpirun -n 2 ./jacobi 10000
 
 ring:
-	mpicc -o jacobi_ring jacobi_ring.c && mpirun -n 4 ./jacobi_ring 400
+	mpicc -O3 -o jacobi_ring jacobi_ring.c
 
 seq:
 	gcc -o jacobi_seq jacobi_seq.c && ./jacobi_seq 3001
