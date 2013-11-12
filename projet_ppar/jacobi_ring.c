@@ -165,59 +165,52 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
   int prev = (rank - 1) < 0 ? proc_num - 1 : rank - 1;
   int next = (rank + 1) >= proc_num ? 0 : rank + 1;
   int k;
-//  printf("####### matrix ######\n");
-
-//  printMatrix(A, n, hlocal);
-//  printVector(b, n);
-  
-//  printf("####### before do ######\n");
 
   do {
     iter++;
     delta = 0.0;
     for (i = 0; i < hlocal; i++) {
       c = b[i];
-      //      printf("#%d b : %1.2e\n", rank, c);
       
       for(k = 0; k < proc_num; k++) {
         source = (k + rank) % proc_num;
 
         for (j = 0; j < hlocal; j++) {
           if (j != (i + rank * hlocal)) { // si pas diagonale
-            //          printf("c #%d: %1.2e\n",rank,  c); 
             c -= A[i * n + j + source * hlocal] * xPrev[j];
           }
         } // for j
 
         if(iter != 0) {
 
-          if(rank == 0) {
-            printf("#%d is sending : ", rank);
-            printVector(xPrev, hlocal);
+          MPI_Sendrecv(
+                xPrev, hlocal, MPI_DOUBLE, next, 0,
+                xPrev, hlocal, MPI_DOUBLE, prev, 0,
+                MPI_COMM_WORLD, status);
+          
+          /* if(rank == 0) { */
+          /*   printf("#%d is sending : ", rank); */
+          /*   printVector(xPrev, hlocal); */
 
-            MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD);
-          }
+          /*   MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD); */
+          /* } */
 
-          MPI_Recv(xPrev, hlocal, MPI_DOUBLE, next, 0, MPI_COMM_WORLD, status);
-          printf("#%d has received : ", rank);
-          printVector(xPrev, hlocal);
+          /* MPI_Recv(xPrev, hlocal, MPI_DOUBLE, next, 0, MPI_COMM_WORLD, status); */
+          /* printf("#%d has received : ", rank); */
+          /* printVector(xPrev, hlocal); */
 
-          if(rank != 0) {
-            printf("#%d is sending : ", rank);
-            printVector(xPrev, hlocal);
+          /* if(rank != 0) { */
+          /*   printf("#%d is sending : ", rank); */
+          /*   printVector(xPrev, hlocal); */
 
-            MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD);
-          }
+          /*   MPI_Send(xPrev, hlocal, MPI_DOUBLE, prev, 0, MPI_COMM_WORLD); */
+          /* } */
         } // if first iter
 
       } // for k
 
-      //      printf("c_ #%d: %3.2e\n",rank,  c); 
-      /* double diag = A[i * n + i + rank * hlocal]; */
-      /* printf("d #%d: %f\n",rank,  diag); */
       c /= A[i * n + i + rank * hlocal]; // division par diagonale
-      //      printf("c/ #%d: %1.2e\n",rank,  c); 
-      /* printf("c #%d: %f\n",rank,  c); */
+      
       d = fabs(xPrev[i + rank * hlocal] - c);
       if (d > delta) delta = d;
       xNew[i] = c;
@@ -228,21 +221,11 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     // sémantique :
     xPrev = xNew;
     
-    /* printf("#%d is sending : ", rank); */
-    /* printVector(xNew, hlocal); */
-//    printf("#%d delta : %d\n", rank, d);
     
     printf("#%d xPrev : ", rank);
     printVector(xPrev, n);
-//    printf("#%d xNew : ", rank);
-//    printVector(xNew, hlocal);
-//    printf("-----\n");
 
-//    MPI_Allgather(xNew, hlocal, MPI_DOUBLE, xPrev, hlocal, MPI_DOUBLE,
-//		  MPI_COMM_WORLD);
-
-    /* printf("#%d has received : ", rank); */
-    /* printVector(xPrev, n); */
+    
     xNew = xt;
     convergence = (delta < eps);
 
