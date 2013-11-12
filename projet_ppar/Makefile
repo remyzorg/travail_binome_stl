@@ -8,6 +8,9 @@ both:
 ring:
 	mpicc -O3 -o jacobi_ring jacobi_ring.c
 
+mp:
+	mpicc -O3 -fopenmp -o jacobi_mp jacobi_mp.c
+
 seq:
 	gcc -o jacobi_seq jacobi_seq.c && ./jacobi_seq 3001
 

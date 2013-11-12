@@ -154,7 +154,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 			double eps, int n, int maxIter, int hlocal,
 			int offset, int rank,
                         int proc_num, double* my_prev) { 
-  int i, j, convergence, iter; 
+  int i, j, convergence, iter, local_convergence; 
   double c, d, delta;
   double *xNew, *xPrev, *myPrev, *xt;
 
@@ -190,42 +190,68 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     for(k = 0; k < proc_num; k++) {
       source = (k + rank) % proc_num;
 
-      if (source == last)
-	h = hlocal + offset;
-      else h = hlocal;
+/* <<<<<<< HEAD */
+/*       if (source == last) */
+/* 	h = hlocal + offset; */
+/*       else h = hlocal; */
       
-      for (i = 0; i < h; i++) {
-        diagonale = A[i * n + i + rank * hlocal]; 
+/*       for (i = 0; i < h; i++) { */
+/*         diagonale = A[i * n + i + rank * hlocal];  */
 
-        if(k == 0) {
-          c = b[i];
-        } else {
-          c = xNew[i];
-        }
+/*         if(k == 0) { */
+/*           c = b[i]; */
+/*         } else { */
+/*           c = xNew[i]; */
+/*         } */
       
-        for (j = 0; j < w; j++) {
-          actual_j = j + source * hlocal;
-          if (actual_j != (i + rank * hlocal)) { // si pas diagonale
-            c -= A[i * n + actual_j] * xPrev[j];
+/*         for (j = 0; j < w; j++) { */
+/*           actual_j = j + source * hlocal; */
+/*           if (actual_j != (i + rank * hlocal)) { // si pas diagonale */
+/*             c -= A[i * n + actual_j] * xPrev[j]; */
+/*           } */
+/*         } // for j */
+/* ======= */
+      if(!local_convergence) {
+        for (i = 0; i < hlocal; i++) {
+          diagonale = A[i * n + i + rank * hlocal]; 
+
+          if(k == 0) {
+            c = b[i];
+          } else {
+            c = xNew[i];
           }
-        } // for j
+        
 
 
-        if(k == proc_num - 1) {
-          c /= A[i * n + i + rank * hlocal]; // division par diagonale
-  
-          d = fabs(myPrev[i] - c);
-          if (d > delta) delta = d;
+          for (j = 0; j < hlocal; j++) {
+            actual_j = j + source * hlocal;
+            if (actual_j != (i + rank * hlocal)) { // si pas diagonale
+              c -= A[i * n + actual_j] * xPrev[j];
+            }
+          } // for j
 
-        }
-      
-        xNew[i] = c;
 
-      } // for i
+          if(k == proc_num - 1) {
+            c /= A[i * n + i + rank * hlocal]; // division par diagonale
+    
+            d = fabs(myPrev[i] - c);
+            if (d > delta) delta = d;
+
+            local_convergence = (delta < eps);
+          }
+        
+          xNew[i] = c;
+
+        } // for i
+      } //if not local_convergence
 
 
       if(iter != 0 && k != proc_num - 1) {
 
+/* <<<<<<< HEAD */
+/* ======= */
+/*         comm++; */
+/* >>>>>>> a9903824b33c0e44d60d7ed4329dbe4f3b4bf207 */
         MPI_Sendrecv(
               xPrev, hlocal + offset, MPI_DOUBLE, next, 0,
               xPrev, hlocal, MPI_DOUBLE, prev, 0,
@@ -249,7 +275,17 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 
     //printf("comm : %d\n", comm); 
     xNew = xt;
-    convergence = (delta < eps);
+
+    convergence = local_convergence;
+    
+    for(k = 0; k < proc_num; k++) {
+        MPI_Sendrecv(
+            &convergence, 1, MPI_INT, next, 0,
+            &local_convergence, 1, MPI_INT, prev, 0,
+            MPI_COMM_WORLD, status);
+
+        convergence = local_convergence * convergence;
+    } 
 
   } while ((!convergence) && (iter < maxIter));
 
@@ -362,7 +398,6 @@ int main(int argc, char *argv[]) {
   generateRandomDiagonallyDominantMatrix(A, n, hlocal + offset, hlocal, rank);
   generateRandomVector(b, hlocal + offset, rank);
 
-  printVector(b, hlocal + offset);
   
   /* Perform Jacobi iteration 
 
