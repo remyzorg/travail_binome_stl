@@ -152,7 +152,7 @@ double maxAbsVector(double *v, int n) {
 */
 double *jacobiIteration(double *x, double *xp, double *A, double *b,
 			double eps, int n, int maxIter, int hlocal,
-			int offset, int rank,
+			int offset, int rank, int global_offset,
                         int proc_num, double* my_prev) { 
   int i, j, convergence, iter, local_convergence; 
   double c, d, delta;
@@ -178,7 +178,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
   int comm = 0;
 
   int h = hlocal;
-  int w = rank == last ? hlocal + offset : hlocal;
+  int w = rank == last ? hlocal + global_offset : hlocal;
 
  /* TODO : j'ai oublié de passer le offset correct. il faut aussi modifier */
  /* les sendrecv et ça devrait le faire trololo */
@@ -190,29 +190,14 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     for(k = 0; k < proc_num; k++) {
       source = (k + rank) % proc_num;
 
-/* <<<<<<< HEAD */
-/*       if (source == last) */
-/* 	h = hlocal + offset; */
-/*       else h = hlocal; */
-      
-/*       for (i = 0; i < h; i++) { */
-/*         diagonale = A[i * n + i + rank * hlocal];  */
+      if (source == last)
+        h = hlocal + global_offset;
+      else h = hlocal;
 
-/*         if(k == 0) { */
-/*           c = b[i]; */
-/*         } else { */
-/*           c = xNew[i]; */
-/*         } */
-      
-/*         for (j = 0; j < w; j++) { */
-/*           actual_j = j + source * hlocal; */
-/*           if (actual_j != (i + rank * hlocal)) { // si pas diagonale */
-/*             c -= A[i * n + actual_j] * xPrev[j]; */
-/*           } */
-/*         } // for j */
-/* ======= */
       if(!local_convergence) {
-        for (i = 0; i < hlocal; i++) {
+
+
+        for (i = 0; i < h; i++) {
           diagonale = A[i * n + i + rank * hlocal]; 
 
           if(k == 0) {
@@ -223,7 +208,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
         
 
 
-          for (j = 0; j < hlocal; j++) {
+          for (j = 0; j < w; j++) {
             actual_j = j + source * hlocal;
             if (actual_j != (i + rank * hlocal)) { // si pas diagonale
               c -= A[i * n + actual_j] * xPrev[j];
@@ -248,13 +233,10 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 
       if(iter != 0 && k != proc_num - 1) {
 
-/* <<<<<<< HEAD */
-/* ======= */
-/*         comm++; */
-/* >>>>>>> a9903824b33c0e44d60d7ed4329dbe4f3b4bf207 */
+	
         MPI_Sendrecv(
-              xPrev, hlocal + offset, MPI_DOUBLE, next, 0,
-              xPrev, hlocal, MPI_DOUBLE, prev, 0,
+              xPrev, w, MPI_DOUBLE, next, 0,
+              xPrev, h, MPI_DOUBLE, prev, 0,
               MPI_COMM_WORLD, status);
 
       } // if first iter
@@ -406,7 +388,7 @@ int main(int argc, char *argv[]) {
   */
   gettimeofday(&before, NULL);
   x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n,
- 		      JACOBI_MAX_ITER, hlocal, offset, rank, numproc, my_prev);
+ 		      JACOBI_MAX_ITER, hlocal, offset, rank, remainder, numproc, my_prev);
   gettimeofday(&after, NULL);
 
   /* MPI_Allgather(x, hlocal, MPI_DOUBLE, result, hlocal, MPI_DOUBLE, */
