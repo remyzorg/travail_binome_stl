@@ -210,7 +210,45 @@ Le pseudo code est détaillé dans l'algorithme~\ref{jacanneau}.
  \caption{\label{jacanneau}Jacobi avec anneau}
 \end{algorithm}
 
+\subsection{Matrice non divisible par $P$}
+
+Dans le cas où la matrice n'est pas divisible par $P$, nous avons fait
+le choix d'ajouter au dernier processus les éléments manquant sous
+forme de décalage (\emph{offset}). On peut reprendre les algorithmes
+décris précédemment en ajoutant le décalage à $hlocal$. Dans le cas de
+l'algorithme en anneau, on distingue plusieurs cas :
+\begin{itemize}
+\item Le processus source courant est le dernier processus : on
+considère la largeur du bloc comme étant de $(hlocal + offset)$.
+\item Le processus courant est le dernier processus : on considère la
+hauteur du bloc comme étant de $(hlocal + offset)$.
+\item Les deux assertions précédentes sont vérifiées : on applique les
+la modification et la taille du bloc devient : $(hlocal + offset) *
+(hlocal + offset)$
+\end{itemize}
+
 \subsection{Algorithmes d'initialisation et de vérification}
+
+Les étapes de génération de la matrice, du vecteur et le calcul de du
+résidu n'est pas pris en compte dans l'analyse de l'efficacité. Les
+algorithmes implémentés sont donc relativement naïfs.
+
+Concernant la matrice, on parallelise simplement la fonction de
+génération sans s'occuper du partage ni des communications parce que
+la matrice va rester distribuée durant toute l'opération. On utilise
+le même algorithme que celui fournit et on créé sur chaque processus
+une partie de matrice de taille $hlocal$ dans le cas où la
+matrice n'est pas divisible. La génération du vecteur s'inspire
+exactement de la même idée, sans subtilité particulière.
+
+Le calcul du résidu est légèrement plus compliqué parce que l'on doit
+effectuer une partir du calcul sur chaque processus puis ensuite
+réunir ces calculs. Il faut dans un premier temps calculer une partie
+du résidu. Pour cela, on parallèlise la boucle de calcul donnée comme
+si le vecteur résultat était de taille hlocal. On utilise ensuite une
+routine de communication collective. On pourra utiliser MPI\_Gather,
+dont le comportement est analogue à MPI\_Allgather sauf qu'il n'y a
+qu'un seul processus cible.
 
 \section{Optimisations}
 
