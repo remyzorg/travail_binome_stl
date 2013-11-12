@@ -152,7 +152,7 @@ double maxAbsVector(double *v, int n) {
 double *jacobiIteration(double *x, double *xp, double *A, double *b,
 			double eps, int n, int maxIter, int hlocal, int rank,
                         int proc_num, double* my_prev) { 
-  int i, j, convergence, iter; 
+  int i, j, convergence, iter, local_convergence; 
   double c, d, delta;
   double *xNew, *xPrev, *myPrev, *xt;
 
@@ -181,37 +181,40 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     for(k = 0; k < proc_num; k++) {
       source = (k + rank) % proc_num;
 
-      #pragma omp parallel for default(shared) private(c, d) 
-      for (i = 0; i < hlocal; i++) {
-        diagonale = A[i * n + i + rank * hlocal]; 
+      if(!local_convergence) {
+        #pragma omp parallel for default(shared) private(c, d) 
+        for (i = 0; i < hlocal; i++) {
+          diagonale = A[i * n + i + rank * hlocal]; 
 
-        if(k == 0) {
-          c = b[i];
-        } else {
-          c = xNew[i];
-        }
-      
-
-
-        for (j = 0; j < hlocal; j++) {
-          actual_j = j + source * hlocal;
-          if (actual_j != (i + rank * hlocal)) { // si pas diagonale
-            c -= A[i * n + actual_j] * xPrev[j];
+          if(k == 0) {
+            c = b[i];
+          } else {
+            c = xNew[i];
           }
-        } // for j
+        
 
 
-        if(k == proc_num - 1) {
-          c /= A[i * n + i + rank * hlocal]; // division par diagonale
-  
-          d = fabs(myPrev[i] - c);
-          if (d > delta) delta = d;
+          for (j = 0; j < hlocal; j++) {
+            actual_j = j + source * hlocal;
+            if (actual_j != (i + rank * hlocal)) { // si pas diagonale
+              c -= A[i * n + actual_j] * xPrev[j];
+            }
+          } // for j
 
-        }
-      
-        xNew[i] = c;
 
-      } // for i
+          if(k == proc_num - 1) {
+            c /= A[i * n + i + rank * hlocal]; // division par diagonale
+    
+            d = fabs(myPrev[i] - c);
+            if (d > delta) delta = d;
+            local_convergence = (delta < eps);
+
+          }
+        
+          xNew[i] = c;
+
+        } // for i
+      }
 
 
       if(iter != 0 && k != proc_num - 1) {
@@ -241,8 +244,16 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 
     //printf("comm : %d\n", comm); 
     xNew = xt;
-    convergence = (delta < eps);
+    convergence = local_convergence;
+    
+    for(k = 0; k < proc_num; k++) {
+        MPI_Sendrecv(
+            &convergence, 1, MPI_INT, next, 0,
+            &local_convergence, 1, MPI_INT, prev, 0,
+            MPI_COMM_WORLD, status);
 
+        convergence = local_convergence * convergence;
+    } 
   } while ((!convergence) && (iter < maxIter));
 
   return xPrev;

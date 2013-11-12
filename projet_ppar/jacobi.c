@@ -148,7 +148,7 @@ double maxAbsVector(double *v, int n) {
 */
 double *jacobiIteration(double *x, double *xp, double *A, double *b,
 			double eps, int n, int maxIter, int hlocal, int rank) { 
-  int i, j, convergence, iter; 
+  int i, j, convergence, iter, local_convergence; 
   double c, d, delta;
   double *xNew, *xPrev, *xt;
 
@@ -168,28 +168,35 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 
   do {
     iter++;
-    delta = 0.0;
-    for (i = 0; i < hlocal; i++) {
-      c = b[i];
-      //      printf("#%d b : %1.2e\n", rank, c);
-      for (j = 0; j < n; j++) {
-        if (j != (i + rank * hlocal)) { // si pas diagonale
-          //          printf("c #%d: %1.2e\n",rank,  c); 
-          c -= A[i * n + j] * xPrev[j];
+
+    if(!local_convergence) {
+      delta = 0.0;
+      for (i = 0; i < hlocal; i++) {
+        c = b[i];
+        //      printf("#%d b : %1.2e\n", rank, c);
+        for (j = 0; j < n; j++) {
+          if (j != (i + rank * hlocal)) { // si pas diagonale
+            //          printf("c #%d: %1.2e\n",rank,  c); 
+            c -= A[i * n + j] * xPrev[j];
+          }
         }
+        
+        c /= A[i * n + i + rank * hlocal]; // division par diagonale
+        d = fabs(xPrev[i + rank * hlocal] - c);
+        if (d > delta) delta = d;
+
+        xNew[i] = c;
       }
-          c /= A[i * n + i + rank * hlocal]; // division par diagonale
-           d = fabs(xPrev[i + rank * hlocal] - c);
-      if (d > delta) delta = d;
+      
 
+      local_convergence = (delta < eps);
+    }
 
-      xNew[i] = c;
-      }
-
+    MPI_Allreduce(&local_convergence, &convergence, 1, MPI_INT, MPI_PROD, 
+                  MPI_COMM_WORLD);
     MPI_Allgather(xNew, hlocal, MPI_DOUBLE, xPrev, hlocal, MPI_DOUBLE,
-		  MPI_COMM_WORLD);
+                  MPI_COMM_WORLD);
 
-      convergence = (delta < eps);
 
   } while ((!convergence) && (iter < maxIter));
 
