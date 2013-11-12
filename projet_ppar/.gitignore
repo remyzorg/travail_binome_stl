@@ -1,5 +1,6 @@
 jacobi
 jacobi_seq
+jacobi_ring
 *.aux
 *.log
 *.pdf

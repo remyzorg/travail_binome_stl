@@ -1,15 +1,18 @@
 
 all:
-	mpicc -o jacobi jacobi.c
+	mpicc -O3 -o jacobi jacobi.c
 
 both:
-	mpicc -o jacobi jacobi.c && mpirun -n 2 ./jacobi 3000
+	mpicc -o jacobi jacobi.c && mpirun -n 2 ./jacobi 10000
 
 ring:
-	mpicc -o jacobi_ring jacobi_ring.c && mpirun -n 2 ./jacobi_ring 4
+	mpicc -O3 -o jacobi_ring jacobi_ring.c
+
+mp:
+	mpicc -O3 -fopenmp -o jacobi_mp jacobi_mp.c
 
 seq:
-	gcc -o jacobi_seq jacobi_seq.c && ./jacobi_seq 3000
+	gcc -o jacobi_seq jacobi_seq.c && ./jacobi_seq 3001
 
 exec:
-	mpirun -n 15 -hostfile hostfile ./jacobi
+	mpirun -n 10 -hostfile hostfile ./jacobi 60000
