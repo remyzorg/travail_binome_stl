@@ -165,7 +165,7 @@ void init_counts(int numproc, int hlocal,
 */
 double *jacobiIteration(double *x, double *xp, double *A, double *b,
 			double eps, int n, int maxIter, int hlocal, int rank,
-                        int proc_num) { 
+                        int proc_num, double* my_prev) { 
   int i, j, convergence, iter; 
   double c, d, delta;
   double *xNew, *xPrev, *myPrev, *xt;
@@ -174,7 +174,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
     x[i] = 1.0;
   }
 
-  myPrev = (double*)calloc(hlocal, sizeof(double));
+  myPrev = my_prev;
 
   xPrev = x;
   xNew = xp;
@@ -227,7 +227,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
       } // for i
 
 
-      if(iter != 0) {
+      if(iter != 0 && k != proc_num - 1) {
 
       
         comm++;
@@ -264,7 +264,7 @@ double *jacobiIteration(double *x, double *xp, double *A, double *b,
 /* A small testing main program */
 int main(int argc, char *argv[]) {
   int i, n;
-  double *A, *b, *x, *r, *xA, *xB, *result;
+  double *A, *b, *x, *r, *xA, *xB, *result, *my_prev;
   double maxAbsRes;
   struct timeval before, after;
 
@@ -335,6 +335,17 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  if ((my_prev = (double *) calloc(hlocal, sizeof(double))) == NULL) {
+    free(A);
+    free(b);
+    free(xA);
+    free(xB);
+    free(r);
+    free(result);
+    fprintf(stderr, "Not enough memory.\n");
+    return 1;
+  }
+
 
   int * recvcounts;
   int * displs;
@@ -355,7 +366,7 @@ int main(int argc, char *argv[]) {
   */
   gettimeofday(&before, NULL);
   x = jacobiIteration(xA, xB, A, b, JACOBI_EPS, n,
- 		      JACOBI_MAX_ITER, hlocal, rank, numproc);
+ 		      JACOBI_MAX_ITER, hlocal, rank, numproc, my_prev);
   gettimeofday(&after, NULL);
 
   MPI_Allgather(x, hlocal, MPI_DOUBLE, result, hlocal, MPI_DOUBLE,
@@ -400,6 +411,7 @@ int main(int argc, char *argv[]) {
   free(xA);
   free(xB);
   free(r);
+  free(result);
 
   MPI_Finalize();
 
